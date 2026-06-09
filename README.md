@@ -8,6 +8,17 @@
 ![lobby](docs/lobby.png)
 ![reveal](docs/reveal.png)
 
+## 무료 배포 (Render)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jungrok5/ladder-online/tree/claude/greeting-qvda6z)
+
+위 버튼 → Render 로그인 → **Apply** 한 번이면 배포됩니다. `render.yaml`에
+빌드/시작 명령이 정의돼 있어 추가 설정이 필요 없습니다. 배포 후
+`https://ladder-online-xxxx.onrender.com` 주소로 방을 만들어 링크를 공유하세요.
+
+> 무료(Free) 인스턴스는 15분간 접속이 없으면 잠들고, 첫 접속 시 약 30초
+> 콜드스타트가 있습니다. 게임 중에는 폴링으로 계속 깨어 있어 문제없습니다.
+
 ## 특징
 
 - **데이터베이스 없음** — 모든 방 상태는 서버 메모리에 저장(잠깐 즐기는 용도, 12시간 후 자동 삭제).
