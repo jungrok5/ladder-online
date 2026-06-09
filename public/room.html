@@ -116,8 +116,8 @@
       else html += `<p class="status mt">이름을 입력하고 원하는 칸을 누르세요.</p>`;
 
       if (isHost) {
-        const ok = s.players.length >= 2;
-        html += `<button class="block mt" id="startBtn" ${ok ? '' : 'disabled'}>사다리 시작 ${ok ? '' : '(2명 이상 필요)'}</button>`;
+        const ok = s.players.length >= 1;
+        html += `<button class="block mt" id="startBtn" ${ok ? '' : 'disabled'}>사다리 시작 ${ok ? '' : '(1명 이상 필요)'}</button>`;
       }
       html += `</div>`;
       return html;

@@ -308,7 +308,7 @@ const server = http.createServer(async (req, res) => {
         if (action === '/start' && req.method === 'POST') {
           const body = await readBody(req);
           if (body.hostToken !== room.hostToken) return sendJson(res, 403, { error: '방장만 시작할 수 있어요.' });
-          if (room.players.length < 2) return sendJson(res, 400, { error: '최소 2명 이상이어야 시작할 수 있어요.' });
+          if (room.players.length < 1) return sendJson(res, 400, { error: '최소 1명 이상이어야 시작할 수 있어요.' });
 
           // random 모드: 빈 칸에 랜덤 배정
           if (room.laneMode === 'random') {
