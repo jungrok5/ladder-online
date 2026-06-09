@@ -170,7 +170,9 @@ async function integration() {
   assert.ok(a1.data.name && a1.data.name.trim().length > 0, '이름 없이 join 시 랜덤 이름');
   assert.ok(!/^참가자/.test(a1.data.name), '기본값(참가자N)이 아닌 랜덤 이름');
   assert.ok(a2.data.name && a2.data.name.trim().length > 0, '공백 이름도 랜덤 이름으로 대체');
-  ok('join: 이름 없이 참여 시 랜덤 닉네임 부여');
+  assert.ok(!/\d$/.test(a1.data.name) && !/\d$/.test(a2.data.name), '자동 닉네임엔 숫자 접미사가 붙지 않음');
+  assert.notStrictEqual(a1.data.name, a2.data.name, '자동 닉네임은 서로 겹치지 않음');
+  ok('join: 이름 없이 참여 시 겹치지 않는 랜덤 닉네임(숫자 없음)');
 
   // 디렉터리 트래버설 가드
   r = await fetch(base + '/../server.js').then((x) => x.status).catch(() => 'err');
