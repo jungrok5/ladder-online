@@ -44,6 +44,13 @@ function randomId(len) {
   return out;
 }
 
+// 이름 없이 참여할 때 붙여줄 랜덤 닉네임 (형용사 + 동물)
+const NAME_ADJ = ['날쌘', '용감한', '귀여운', '빛나는', '행복한', '멋진', '엉뚱한', '느긋한', '씩씩한', '잽싼', '든든한', '통큰', '명랑한', '슬기로운', '폭신한', '겁없는'];
+const NAME_NOUN = ['호랑이', '토끼', '판다', '여우', '너구리', '다람쥐', '펭귄', '고양이', '강아지', '사자', '곰', '부엉이', '수달', '햄스터', '코알라', '문어'];
+function randomName() {
+  return `${NAME_ADJ[crypto.randomInt(NAME_ADJ.length)]} ${NAME_NOUN[crypto.randomInt(NAME_NOUN.length)]}`;
+}
+
 function token() {
   return randomId(16);
 }
@@ -272,7 +279,7 @@ const server = http.createServer(async (req, res) => {
             }
           }
 
-          let name = (body.name || '').toString().trim().slice(0, MAX_NAME_LEN) || `참가자${room.players.length + 1}`;
+          let name = (body.name || '').toString().trim().slice(0, MAX_NAME_LEN) || randomName();
           // 이름 중복 방지
           if (room.players.some((p) => p.name === name)) {
             let n = 2;

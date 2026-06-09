@@ -163,6 +163,15 @@ async function integration() {
   assert.strictEqual(new Set(lanes).size, lanes.length, 'random: 칸 중복 없음');
   ok('random 모드: 시작 시 빈 칸 랜덤 배정(중복 없음)');
 
+  // 이름 없이 참여 → 랜덤 닉네임 부여
+  let anon = await http(base, 'POST', '/api/rooms', { laneCount: 4, results: ['a','b','c','d'] });
+  let a1 = await http(base, 'POST', `/api/rooms/${anon.data.roomId}/join`, { lane: 0 });
+  let a2 = await http(base, 'POST', `/api/rooms/${anon.data.roomId}/join`, { name: '   ', lane: 1 });
+  assert.ok(a1.data.name && a1.data.name.trim().length > 0, '이름 없이 join 시 랜덤 이름');
+  assert.ok(!/^참가자/.test(a1.data.name), '기본값(참가자N)이 아닌 랜덤 이름');
+  assert.ok(a2.data.name && a2.data.name.trim().length > 0, '공백 이름도 랜덤 이름으로 대체');
+  ok('join: 이름 없이 참여 시 랜덤 닉네임 부여');
+
   // 디렉터리 트래버설 가드
   r = await fetch(base + '/../server.js').then((x) => x.status).catch(() => 'err');
   assert.notStrictEqual(r, 200, '트래버설로 server.js 노출 금지');
