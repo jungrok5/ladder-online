@@ -160,26 +160,25 @@ body.has3d .sub { margin: 0 0 10px; font-size: .82rem; }
 body.has3d .card { background: rgba(26,31,61,.82); backdrop-filter: blur(5px); }
 body.has3d.revealing .wrap { opacity: 0; pointer-events: none; transition: opacity .3s; }
 
-/* 머리 위 닉네임 라벨 (CSS2D) */
+/* 머리 위 닉네임 라벨 (CSS2D) — 그림자 없이 또렷하게, 불투명 배경 */
 .nick {
   pointer-events: none; white-space: nowrap;
-  font: 600 12px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  color: #fff; background: rgba(13,17,48,.78); border: 1px solid rgba(255,255,255,.18);
-  padding: 2px 8px; border-radius: 999px; transform: translateY(-2px);
-  text-shadow: 0 1px 2px #000;
+  font: 700 12px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: #fff; background: #14193a; border: 1.5px solid rgba(255,255,255,.4);
+  padding: 2px 9px; border-radius: 999px; transform: translateY(-2px);
 }
-.nick.me { border-color: var(--accent); background: rgba(108,123,255,.5); }
-.nick.win { border-color: var(--good); background: rgba(56,211,159,.55); }
+.nick.me { border-color: var(--accent); background: var(--accent); color: #0d1130; }
+.nick.win { border-color: #c9ffe9; background: #1f9e74; color: #fff; }
 
-/* 결과 라벨 (사다리 바닥, CSS2D) */
+/* 결과 라벨 (사다리 바닥, CSS2D) — 흰 글씨 + 불투명 배경, 그림자 제거로 선명하게 */
 .result {
   pointer-events: none; white-space: nowrap;
-  font: 700 13px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  color: var(--text); background: rgba(34,42,85,.92); border: 1px solid rgba(255,255,255,.2);
-  padding: 4px 10px; border-radius: 10px; text-shadow: 0 1px 2px #000;
+  font: 800 14px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: #fff; background: #1b2150; border: 1.5px solid rgba(255,255,255,.4);
+  padding: 4px 11px; border-radius: 10px;
   transition: transform .2s;
 }
-.result.hit { background: rgba(56,211,159,.92); color: #06231a; transform: scale(1.18); border-color: var(--good); }
+.result.hit { background: #1f9e74; color: #fff; transform: scale(1.18); border-color: #c9ffe9; }
 
 /* 3D 연출 배너 */
 .r3d-drum, .r3d-verdict {
