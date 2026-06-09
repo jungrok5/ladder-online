@@ -10,7 +10,7 @@
 
 ## 무료 배포 (Render)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jungrok5/ladder-online/tree/claude/greeting-qvda6z)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jungrok5/ladder-online/tree/main)
 
 위 버튼 → Render 로그인 → **Apply** 한 번이면 배포됩니다. `render.yaml`에
 빌드/시작 명령이 정의돼 있어 추가 설정이 필요 없습니다. 배포 후

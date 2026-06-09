@@ -112,7 +112,7 @@
       }
       html += `</div>`;
 
-      if (me) html += `<p class="status mt">내 칸: <b>${me.lane + 1}번</b> · 방장이 시작하기를 기다리는 중…</p>`;
+      if (me) html += `<p class="status mt">${me.lane != null ? `내 칸: <b>${me.lane + 1}번</b> · ` : ''}방장이 시작하기를 기다리는 중…</p>`;
       else html += `<p class="status mt">이름을 입력하고 원하는 칸을 누르세요.</p>`;
 
       if (isHost) {

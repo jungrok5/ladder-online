@@ -3,7 +3,7 @@ services:
     name: ladder-online
     runtime: node
     plan: free
-    branch: claude/greeting-qvda6z
+    branch: main
     buildCommand: npm install
     startCommand: node server.js
     autoDeploy: true
