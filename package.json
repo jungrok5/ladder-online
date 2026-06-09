@@ -1,0 +1,14 @@
+{
+  "name": "ladder-online",
+  "version": "1.0.0",
+  "description": "데이터베이스 없는 초간단 온라인 사다리타기 (3D 캐릭터 연출)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,52 +1,76 @@
-# Ladder Online (사다리타기 온라인)
+# 🪜 사다리타기 온라인 (Ladder Online)
 
-여러 사람이 함께 즐기는 온라인 사다리타기 게임입니다. 참가자와 결과를 입력하면
-사다리를 자동으로 생성하고, 누가 어떤 결과에 당첨되는지 보여줍니다.
+여러 사람이 함께 즐기는 **온라인 사다리타기(Amidakuji)**. 방을 만들어 링크를
+카톡·팀즈로 공유하면, 각자 자기 칸을 고르고, 방장이 시작하면 랜덤 사다리가
+생성됩니다. **3D 캐릭터가 사다리를 타고 내려가** 각자의 결과(보상/벌칙)에 도착하는
+연출을 함께 지켜봅니다.
 
-## 주요 기능
+![lobby](docs/lobby.png)
+![reveal](docs/reveal.png)
 
-- 참가자 수에 맞춰 사다리를 자동 생성
-- 가로줄(다리) 무작위 배치
-- 참가자별 결과 추적 및 시각화
-- 결과 공유
+## 특징
+
+- **데이터베이스 없음** — 모든 방 상태는 서버 메모리에 저장(잠깐 즐기는 용도, 12시간 후 자동 삭제).
+- **의존성 없음** — Node 내장 `http` 모듈만 사용. `node server.js` 로 바로 실행.
+- **실시간 동기화** — WebSocket 대신 1.5초 폴링으로 모든 참가자 화면을 맞춤.
+- **3D 연출** — Three.js + Kenney Mini Characters. WebGL 실패 시 자동으로 **2D SVG 연출로 폴백**.
+- **공정한 사다리** — 인접 가로대를 금지해 경로가 항상 전단사(bijection)가 되도록 생성.
+
+## 게임 흐름
+
+1. 방장이 **칸 수(2~12)** 와 각 칸의 **결과(자유 입력)** 를 정해 방을 만든다.
+2. 링크를 공유 → 참가자들이 **원하는 출발 칸을 직접 선택**한다.
+3. 방장이 시작하면 랜덤 사다리가 생성되고, 캐릭터들이 내려가 결과에 도착한다.
+4. 방장은 **다시 섞기**로 같은 멤버·같은 칸에 새 사다리를 굴릴 수 있다.
 
 ## 시작하기
 
-### 요구 사항
-
-- Node.js 18 이상 (또는 프로젝트 환경에 맞는 런타임)
-
-### 설치
-
 ```bash
-git clone https://github.com/jungrok5/ladder-online.git
-cd ladder-online
-npm install
+npm start        # http://localhost:3000
 ```
 
-### 실행
+환경 변수 `PORT` 로 포트를 바꿀 수 있습니다.
+
+## 테스트
 
 ```bash
-npm start
+npm test         # 로직/HTTP 통합 테스트 (의존성 없음, Node 18+ 전역 fetch)
 ```
 
-## 사용 방법
+3D 무대 스모크(스크린샷 캡처)는 Playwright가 필요합니다(선택):
 
-1. 참가자 이름을 입력합니다.
-2. 결과(상품, 벌칙 등)를 입력합니다.
-3. 사다리를 생성하고 시작 버튼을 누릅니다.
-4. 각 참가자의 경로를 따라 결과를 확인합니다.
+```bash
+npm i playwright
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/smoke.mjs   # docs/*.png 생성
+```
 
-## 기여하기
+## 구조
 
-기여는 언제나 환영합니다. 이슈를 등록하거나 Pull Request를 보내주세요.
+| 파일 | 설명 |
+| --- | --- |
+| `server.js` | 순수 Node HTTP 서버 — 라우팅·정적 서빙(gzip·캐시·MIME)·인메모리 룸 저장소·사다리 생성/경로 추적 |
+| `public/index.html` | 방 생성 페이지 (칸 수·결과 입력) |
+| `public/room.html` | 폴링 SPA — 로비(칸 선택)·연출 트리거·결과·2D 폴백 |
+| `public/scene.js` | 3D 무대 (Three.js, 캐릭터 로딩·카메라 자동 프레이밍·사다리 하강 애니메이션) |
+| `public/style.css` | 스타일 |
+| `public/vendor/`, `public/assets/` | Three.js 모듈, Kenney 캐릭터 GLB (장기 캐시) |
 
-1. 저장소를 Fork 합니다.
-2. 기능 브랜치를 생성합니다 (`git checkout -b feature/my-feature`).
-3. 변경 사항을 커밋합니다 (`git commit -m 'Add my feature'`).
-4. 브랜치에 Push 합니다 (`git push origin feature/my-feature`).
-5. Pull Request를 생성합니다.
+## API
+
+| 메서드 · 경로 | 설명 |
+| --- | --- |
+| `POST /api/rooms` | 방 생성 `{ title, laneCount, results[], laneMode, resultsHidden }` → `{ roomId, hostToken }` |
+| `GET /api/rooms/:id` | 공개 상태. **시작 전에는 사다리/매핑을 노출하지 않음** |
+| `POST /api/rooms/:id/join` | 참가 `{ name, lane? }` (pick: 칸 지정/자동, 점유 시 409) |
+| `POST /api/rooms/:id/start` | 시작 `{ hostToken }` — 사다리 생성 + 매핑 계산, `revealing` 전이 |
+| `POST /api/rooms/:id/finish` | 연출 종료 표시(멱등) — `finished` 전이 |
+| `POST /api/rooms/:id/reset` | 로비로 복귀 `{ hostToken }` (pick 칸 유지) |
+
+## 배포
+
+`render.yaml` 로 Render 무료 플랜에 배포됩니다(`node server.js`, `autoDeploy`).
 
 ## 라이선스
 
-이 프로젝트는 MIT 라이선스를 따릅니다.
+MIT. 캐릭터 모델은 [Kenney Mini Characters](https://kenney.nl) (CC0) —
+`public/assets/characters/LICENSE.txt` 참고.

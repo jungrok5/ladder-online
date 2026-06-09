@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ladder-online
+    runtime: node
+    plan: free
+    branch: claude/greeting-qvda6z
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

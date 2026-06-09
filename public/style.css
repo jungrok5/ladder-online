@@ -1,0 +1,204 @@
+:root {
+  --bg: #0f1226;
+  --card: #1a1f3d;
+  --accent: #6c7bff;
+  --accent2: #ff6c93;
+  --text: #eef0ff;
+  --muted: #9aa0c7;
+  --good: #38d39f;
+  --bad: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #2a2f5e 0%, var(--bg) 60%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 60px;
+}
+
+.wrap { width: 100%; max-width: 520px; }
+
+h1 { font-size: 1.6rem; margin: 8px 0 4px; }
+.sub { color: var(--muted); margin: 0 0 24px; font-size: .95rem; }
+.hint { color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+
+input[type=text] {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #0d1130;
+  color: var(--text);
+  font-size: 1rem;
+}
+input[type=text]:focus { outline: 2px solid var(--accent); }
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: var(--accent);
+  transition: transform .05s, filter .15s;
+}
+button:hover { filter: brightness(1.08); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.secondary { background: #2c335f; }
+button.block { width: 100%; }
+
+.row { display: flex; gap: 10px; }
+.mt { margin-top: 14px; }
+.mb { margin-bottom: 14px; }
+
+/* 칸 수 스텝퍼 */
+.stepper { display: flex; align-items: center; gap: 14px; }
+.stepper button { width: 52px; height: 52px; font-size: 1.6rem; padding: 0; background: #2c335f; }
+.stepper .count {
+  font-size: 2rem; font-weight: 800; min-width: 60px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 결과 입력 */
+.results { display: grid; gap: 8px; }
+.resrow { display: flex; align-items: center; gap: 10px; }
+.resrow .ridx {
+  flex: 0 0 28px; height: 28px; line-height: 28px; text-align: center;
+  border-radius: 8px; background: #2c335f; color: var(--muted); font-size: .8rem; font-weight: 700;
+}
+.resrow input { flex: 1; }
+
+/* 칸 선택 그리드 (로비) */
+.lanes { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.lane {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: left; padding: 12px 14px; background: #0d1130;
+  border: 2px solid rgba(255,255,255,.1); color: var(--text);
+}
+.lane .lnum { font-size: .75rem; color: var(--muted); font-weight: 700; }
+.lane .lwho { font-size: 1rem; font-weight: 700; }
+.lane .lres { font-size: .78rem; color: var(--muted); }
+.lane.free:hover { border-color: var(--accent); background: #141a44; }
+.lane.taken { opacity: .55; }
+.lane.mine { border-color: var(--accent2); background: #2a1330; }
+.lane.mine .lwho { color: var(--accent2); }
+
+.share { display: flex; gap: 8px; align-items: center; }
+.share input { flex: 1; font-size: .85rem; }
+
+.status { text-align: center; padding: 8px 0; color: var(--muted); }
+.big { text-align: center; font-size: 1.4rem; font-weight: 800; margin: 6px 0 12px; }
+
+/* 결과 목록 */
+.outcome { list-style: none; padding: 0; margin: 0; }
+.outcome li {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-radius: 10px; background: #0d1130; margin-bottom: 8px;
+}
+.outcome .oname { font-weight: 700; }
+.outcome .oname small { color: var(--muted); font-weight: 500; }
+.outcome .ores { font-weight: 800; color: var(--good); font-size: 1.05rem; }
+.outcome li.minerow { border: 2px solid var(--accent2); background: #1d1438; }
+
+/* ===== 2D SVG 폴백 연출 ===== */
+.reveal2d {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(8,10,24,.94); backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 16px; text-align: center; animation: revealIn .2s ease;
+}
+@keyframes revealIn { from { opacity: 0; } to { opacity: 1; } }
+.reveal2d .drum {
+  font-size: 1.5rem; font-weight: 800; margin-bottom: 14px; color: var(--accent);
+}
+.reveal2d .svgbox { width: 100%; display: flex; justify-content: center; }
+.reveal2d svg { max-width: 100%; height: auto; }
+.reveal2d .rail { stroke: #3a4170; stroke-width: 4; stroke-linecap: round; }
+.reveal2d .rung { stroke: var(--accent); stroke-width: 5; stroke-linecap: round; }
+.reveal2d .dot { filter: drop-shadow(0 0 6px rgba(255,255,255,.5)); }
+.reveal2d .reslab { fill: var(--muted); font-size: 14px; font-weight: 700; text-anchor: middle; transition: fill .2s; }
+.reveal2d .reslab.hit { fill: var(--good); font-size: 16px; }
+.reveal2d .toplab { fill: var(--text); font-size: 13px; font-weight: 700; text-anchor: middle; }
+
+.flashbang { position: fixed; inset: 0; background: #fff; z-index: 101; pointer-events: none; animation: flash .5s ease forwards; }
+@keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+
+/* ===== 3D 무대 ===== */
+#stage { position: fixed; inset: 0; z-index: 0; }
+#stage canvas { display: block; }
+
+/* 3D 켜졌을 때: HUD를 하단 시트로, 무대는 위쪽에 보이게 */
+body.has3d { display: block; padding: 0; background: #0f1226; }
+body.has3d .wrap {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2;
+  max-width: 560px; margin: 0 auto; padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  max-height: 62vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(15,18,38,0) 0%, rgba(15,18,38,.85) 16%);
+}
+body.has3d h1 { font-size: 1.1rem; margin: 4px 0 0; text-shadow: 0 2px 8px #000; }
+body.has3d .sub { margin: 0 0 10px; font-size: .82rem; }
+body.has3d .card { background: rgba(26,31,61,.82); backdrop-filter: blur(5px); }
+body.has3d.revealing .wrap { opacity: 0; pointer-events: none; transition: opacity .3s; }
+
+/* 머리 위 닉네임 라벨 (CSS2D) */
+.nick {
+  pointer-events: none; white-space: nowrap;
+  font: 600 12px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: #fff; background: rgba(13,17,48,.78); border: 1px solid rgba(255,255,255,.18);
+  padding: 2px 8px; border-radius: 999px; transform: translateY(-2px);
+  text-shadow: 0 1px 2px #000;
+}
+.nick.me { border-color: var(--accent); background: rgba(108,123,255,.5); }
+.nick.win { border-color: var(--good); background: rgba(56,211,159,.55); }
+
+/* 결과 라벨 (사다리 바닥, CSS2D) */
+.result {
+  pointer-events: none; white-space: nowrap;
+  font: 700 13px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: var(--text); background: rgba(34,42,85,.92); border: 1px solid rgba(255,255,255,.2);
+  padding: 4px 10px; border-radius: 10px; text-shadow: 0 1px 2px #000;
+  transition: transform .2s;
+}
+.result.hit { background: rgba(56,211,159,.92); color: #06231a; transform: scale(1.18); border-color: var(--good); }
+
+/* 3D 연출 배너 */
+.r3d-drum, .r3d-verdict {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 90;
+  text-align: center; pointer-events: none; text-shadow: 0 3px 10px #000;
+}
+.r3d-drum { top: 7%; font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+.r3d-verdict {
+  top: 5%; font-size: 1.9rem; font-weight: 900; color: #fff;
+  animation: pop .45s cubic-bezier(.2,1.6,.4,1);
+}
+@keyframes pop { 0% { transform: translateX(-50%) scale(0.2); } 70% { transform: translateX(-50%) scale(1.25); } 100% { transform: translateX(-50%) scale(1); } }
+
+.toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: #2c335f; padding: 10px 16px; border-radius: 10px; font-size: .9rem;
+  opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 110;
+}
+.toast.show { opacity: 1; }
+.err { color: var(--bad); font-size: .85rem; margin-top: 8px; min-height: 1em; }
+.center { text-align: center; }
+a { color: var(--accent); }

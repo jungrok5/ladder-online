@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>사다리타기 온라인</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>🪜 사다리타기 온라인</h1>
+    <p class="sub">방을 만들고 링크를 카톡·팀즈로 공유하세요. 각자 칸을 고르면 3D 캐릭터가 사다리를 타고 내려갑니다!</p>
+
+    <div class="card">
+      <label for="title">게임 제목 (선택)</label>
+      <input id="title" type="text" placeholder="예: 점심 사다리" maxlength="40" />
+
+      <label class="mt">칸 수 (참가 인원)</label>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="줄이기">−</button>
+        <div class="count" id="laneCount">4</div>
+        <button type="button" id="plus" aria-label="늘리기">＋</button>
+      </div>
+      <p class="hint">2 ~ <span id="maxLanes">12</span>칸. 결과 개수는 칸 수와 같습니다.</p>
+
+      <label class="mt">각 칸의 결과 (자유 입력)</label>
+      <div id="results" class="results"></div>
+
+      <button class="block mt" id="create">새 게임 만들기</button>
+      <div class="err" id="err"></div>
+    </div>
+
+    <p class="sub center">데이터베이스 없이 동작하는 초간단 서비스 · 방은 12시간 후 자동 삭제됩니다.<br><small style="opacity:.6">build v1 · 3D 사다리</small></p>
+  </div>
+
+  <script>
+    const MIN = 2, MAX = 12;
+    let laneCount = 4;
+    const saved = {}; // 칸 수를 바꿔도 입력값 유지 (인덱스별)
+
+    const countEl = document.getElementById('laneCount');
+    const resultsEl = document.getElementById('results');
+    const err = document.getElementById('err');
+    document.getElementById('maxLanes').textContent = MAX;
+
+    function captureInputs() {
+      resultsEl.querySelectorAll('input').forEach((inp) => {
+        saved[Number(inp.dataset.i)] = inp.value;
+      });
+    }
+    function renderResults() {
+      let html = '';
+      for (let i = 0; i < laneCount; i++) {
+        const v = (saved[i] || '').replace(/"/g, '&quot;');
+        html += `<div class="resrow"><span class="ridx">${i + 1}</span>
+          <input type="text" data-i="${i}" maxlength="24" placeholder="결과 ${i + 1} (예: 꽝 / 당첨)" value="${v}" /></div>`;
+      }
+      resultsEl.innerHTML = html;
+    }
+    function setCount(n) {
+      captureInputs();
+      laneCount = Math.max(MIN, Math.min(MAX, n));
+      countEl.textContent = laneCount;
+      renderResults();
+    }
+    document.getElementById('minus').onclick = () => setCount(laneCount - 1);
+    document.getElementById('plus').onclick = () => setCount(laneCount + 1);
+    renderResults();
+
+    const btn = document.getElementById('create');
+    btn.addEventListener('click', async () => {
+      captureInputs();
+      btn.disabled = true; err.textContent = '';
+      const results = [];
+      for (let i = 0; i < laneCount; i++) results.push((saved[i] || '').trim());
+      try {
+        const res = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: document.getElementById('title').value,
+            laneCount,
+            results,
+            laneMode: 'pick',     // 각자 칸을 직접 선택
+            resultsHidden: false, // 결과는 처음부터 공개
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '생성 실패');
+        // 방장 토큰은 URL 해시로 전달 → room 페이지가 localStorage에 저장
+        location.href = `/r/${data.roomId}#host=${data.hostToken}`;
+      } catch (e) {
+        err.textContent = e.message;
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

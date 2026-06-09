@@ -1,0 +1,5 @@
+node_modules/
+*.log
+
+# 테스트용 로컬 설치(런타임 의존성 아님)
+package-lock.json

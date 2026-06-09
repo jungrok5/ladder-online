@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>사다리타기 온라인</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div class="wrap">
+    <h1 id="title">사다리타기</h1>
+    <p class="sub" id="subtitle"></p>
+    <div id="app"></div>
+    <div class="err" id="err"></div>
+    <p class="sub center mt"><a href="/">새 방 만들기</a></p>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const roomId = location.pathname.split('/').pop();
+
+    // 방장 토큰: 생성 직후 URL 해시로 도착 → localStorage 저장 후 해시 제거
+    const hostKey = `ladder_host_${roomId}`;
+    const playerKey = `ladder_player_${roomId}`;
+    if (location.hash.startsWith('#host=')) {
+      localStorage.setItem(hostKey, location.hash.slice(6));
+      history.replaceState(null, '', `/r/${roomId}`);
+    }
+    const hostToken = localStorage.getItem(hostKey);
+    let me = JSON.parse(localStorage.getItem(playerKey) || 'null'); // {playerId, name, lane}
+
+    const app = document.getElementById('app');
+    const errEl = document.getElementById('err');
+    let lastSig = '';
+    let revealing = false;     // 연출 중에는 하단 렌더 보류
+    let playedReveal = false;  // 이번 게임 연출을 이미 재생했는지
+    let latestState = null;
+    const myId = () => me && me.playerId;
+
+    function showErr(msg) { errEl.textContent = msg || ''; }
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    async function api(action, body) {
+      const res = await fetch(`/api/rooms/${roomId}${action}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '요청 실패');
+      return data;
+    }
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    // ---------------- 렌더링 ----------------
+    function render(s) {
+      document.getElementById('title').textContent = s.title;
+      document.getElementById('subtitle').textContent =
+        s.status === 'lobby' ? `${s.laneCount}칸 사다리 · 각자 칸을 고르세요`
+        : (s.status === 'finished' ? '도착 완료! 결과를 확인하세요' : '사다리를 타는 중…');
+      const isHost = !!hostToken;
+      let html = '';
+      if (s.status === 'lobby') html += lobbyView(s, isHost);
+      else html += finishedView(s, isHost);
+      app.innerHTML = html;
+      wire(s, isHost);
+      window.L3D && window.L3D.sync(s, myId());
+    }
+
+    function shareCard() {
+      const link = location.origin + '/r/' + roomId;
+      return `<div class="card">
+        <label>친구에게 보낼 링크 (카톡·팀즈에 붙여넣기)</label>
+        <div class="share">
+          <input type="text" id="shareLink" readonly value="${link}" />
+          <button id="copyBtn">복사</button>
+        </div>
+      </div>`;
+    }
+
+    function lobbyView(s, isHost) {
+      const taken = {};
+      s.players.forEach(p => { if (p.lane != null) taken[p.lane] = p.name; });
+      let html = shareCard();
+      html += `<div class="card"><p class="sub" style="margin:2px 0 10px">${s.players.length}/${s.laneCount}명 참가 · 빈 칸을 눌러 선택하세요</p>`;
+
+      if (!me) {
+        html += `<div class="mb"><label for="nameInput">이름</label>
+          <input type="text" id="nameInput" placeholder="이름을 입력하세요" maxlength="20" /></div>`;
+      }
+
+      html += `<div class="lanes">`;
+      for (let i = 0; i < s.laneCount; i++) {
+        const occupant = taken[i];
+        const mine = me && occupant === me.name && me.lane === i;
+        const cls = occupant ? (mine ? 'lane mine' : 'lane taken') : 'lane free';
+        const who = occupant ? escapeHtml(occupant) + (mine ? ' (나)' : '') : '비어있음';
+        const res = s.results ? escapeHtml(s.results[i]) : '';
+        html += `<button type="button" class="${cls}" data-lane="${i}" ${occupant ? 'disabled' : ''}>
+          <span class="lnum">${i + 1}</span>
+          <span class="lwho">${who}</span>
+          <span class="lres">🎁 ${res}</span>
+        </button>`;
+      }
+      html += `</div>`;
+
+      if (me) html += `<p class="status mt">내 칸: <b>${me.lane + 1}번</b> · 방장이 시작하기를 기다리는 중…</p>`;
+      else html += `<p class="status mt">이름을 입력하고 원하는 칸을 누르세요.</p>`;
+
+      if (isHost) {
+        const ok = s.players.length >= 2;
+        html += `<button class="block mt" id="startBtn" ${ok ? '' : 'disabled'}>사다리 시작 ${ok ? '' : '(2명 이상 필요)'}</button>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    function resultFor(s, lane) {
+      if (!s.mapping || !s.results || lane == null) return null;
+      return s.results[s.mapping[lane]];
+    }
+
+    function finishedView(s, isHost) {
+      let html = `<div class="card">
+        <div class="big">🎉 결과</div>
+        <ul class="outcome">`;
+      const rows = s.players.map(p => ({ name: p.name, lane: p.lane, res: resultFor(s, p.lane) }));
+      rows.sort((a, b) => (a.lane ?? 0) - (b.lane ?? 0));
+      for (const r of rows) {
+        const mineCls = (me && r.name === me.name) ? ' minerow' : '';
+        html += `<li class="${mineCls}"><span class="oname">${escapeHtml(r.name)}<small> · ${r.lane + 1}번</small></span>
+          <span class="ores">${escapeHtml(r.res ?? '?')}</span></li>`;
+      }
+      html += `</ul>`;
+      if (isHost) html += `<button class="block mt" id="resetBtn">🔀 다시 섞기 (같은 멤버)</button>`;
+      html += `</div>`;
+      return html;
+    }
+
+    // ---------------- 이벤트 연결 ----------------
+    function wire(s, isHost) {
+      const copyBtn = document.getElementById('copyBtn');
+      if (copyBtn) copyBtn.onclick = () => {
+        const inp = document.getElementById('shareLink');
+        const text = `${s.title}\n${inp.value}`;
+        const fallback = () => { inp.select(); document.execCommand('copy'); };
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(() => toast('제목과 링크 복사됨!')).catch(() => { fallback(); toast('복사됨!'); });
+        } else { fallback(); toast('복사됨!'); }
+      };
+
+      document.querySelectorAll('.lane.free').forEach(btn => {
+        btn.onclick = async () => {
+          if (me) return;
+          showErr('');
+          const nameEl = document.getElementById('nameInput');
+          const name = nameEl ? nameEl.value.trim() : '';
+          const lane = Number(btn.dataset.lane);
+          try {
+            const d = await api('/join', { name, lane });
+            me = { playerId: d.playerId, name: d.name, lane: d.lane };
+            localStorage.setItem(playerKey, JSON.stringify(me));
+            lastSig = ''; poll();
+          } catch (e) { showErr(e.message); }
+        };
+      });
+
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) startBtn.onclick = async () => {
+        showErr('');
+        try { await api('/start', { hostToken }); lastSig = ''; poll(); }
+        catch (e) { showErr(e.message); }
+      };
+
+      const resetBtn = document.getElementById('resetBtn');
+      if (resetBtn) resetBtn.onclick = async () => {
+        try { await api('/reset', { hostToken }); playedReveal = false; lastSig = ''; poll(); }
+        catch (e) { showErr(e.message); }
+      };
+    }
+
+    // ---------------- 연출 ----------------
+    function playReveal(s) {
+      revealing = true;
+      document.body.classList.add('revealing');
+      let done = false;
+      const cleanup = () => {
+        if (done) return; done = true;
+        clearTimeout(failsafe);
+        document.querySelectorAll('.reveal2d, .flashbang').forEach((el) => el.remove());
+        try { window.L3D && window.L3D.endReveal(); } catch (e) {}
+        document.body.classList.remove('revealing');
+        revealing = false; lastSig = '';
+        // 연출이 끝났으니 서버 상태를 finished 로 (멱등)
+        api('/finish', {}).catch(() => {});
+        if (latestState) { latestState.status = 'finished'; render(latestState); }
+        poll();
+      };
+      const failsafe = setTimeout(cleanup, 20000);
+
+      if (window.L3D && window.L3D.ready) {
+        try { window.L3D.reveal(s, myId(), cleanup); return; }
+        catch (e) { /* 3D 실패 → 2D 폴백 */ }
+      }
+      reveal2D(s, cleanup);
+    }
+
+    // 2D SVG 폴백 연출
+    function reveal2D(s, onDone) {
+      const N = s.laneCount, L = s.ladder;
+      if (!L) { onDone(); return; }
+      const W = Math.min(window.innerWidth - 24, 760);
+      const H = Math.min(window.innerHeight - 120, 560);
+      const padX = 40, padTop = 50, padBot = 70;
+      const laneX = (c) => padX + (N === 1 ? 0 : (W - 2 * padX) * c / (N - 1));
+      const rowY = (r) => padTop + (H - padTop - padBot) * (r + 0.5) / L.rows;
+      const topY = padTop - 18, botY = H - padBot + 6;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'reveal2d';
+      let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+      // 레일
+      for (let c = 0; c < N; c++) svg += `<line x1="${laneX(c)}" y1="${topY}" x2="${laneX(c)}" y2="${botY}" class="rail"/>`;
+      // 가로대
+      for (let r = 0; r < L.rows; r++) for (let c = 0; c < N - 1; c++) if (L.H[r][c])
+        svg += `<line x1="${laneX(c)}" y1="${rowY(r)}" x2="${laneX(c + 1)}" y2="${rowY(r)}" class="rung"/>`;
+      // 결과 라벨
+      for (let c = 0; c < N; c++) svg += `<text x="${laneX(c)}" y="${botY + 22}" class="reslab">${escapeHtml((s.results && s.results[c]) || '?')}</text>`;
+      // 출발 라벨
+      const byLane = {};
+      s.players.forEach(p => { if (p.lane != null) byLane[p.lane] = p.name; });
+      for (let c = 0; c < N; c++) if (byLane[c]) svg += `<text x="${laneX(c)}" y="${topY - 6}" class="toplab">${escapeHtml(byLane[c])}</text>`;
+      svg += `</svg>`;
+      overlay.innerHTML = `<div class="drum">🪜 사다리 출발!</div><div class="svgbox">${svg}</div>`;
+      document.body.appendChild(overlay);
+      const svgEl = overlay.querySelector('svg');
+
+      const colors = ['#6c7bff','#ff6c93','#38d39f','#ffb86b','#7bdcff','#c792ea','#ff9e64','#9ece6a','#f7768e','#e0af68','#2ac3de','#bb9af7'];
+      const players = s.players.filter(p => p.lane != null);
+      let remaining = players.length || 1;
+      if (!players.length) { setTimeout(onDone, 400); return; }
+
+      players.forEach((p, idx) => {
+        // 경로 좌표 계산
+        const pts = [];
+        let pos = p.lane;
+        pts.push([laneX(pos), topY]);
+        for (let r = 0; r < L.rows; r++) {
+          pts.push([laneX(pos), rowY(r)]);
+          let np = pos;
+          if (pos > 0 && L.H[r][pos - 1]) np = pos - 1;
+          else if (pos < N - 1 && L.H[r][pos]) np = pos + 1;
+          if (np !== pos) { pts.push([laneX(np), rowY(r)]); pos = np; }
+        }
+        pts.push([laneX(pos), botY]);
+        const end = pos;
+
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('r', '7'); dot.setAttribute('fill', colors[idx % colors.length]);
+        dot.setAttribute('cx', pts[0][0]); dot.setAttribute('cy', pts[0][1]);
+        dot.setAttribute('class', 'dot');
+        svgEl.appendChild(dot);
+
+        // 누적 거리 기반 등속 애니메이션
+        const segLen = [], totals = [0];
+        for (let i = 1; i < pts.length; i++) {
+          const d = Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]);
+          segLen.push(d); totals.push(totals[i-1] + d);
+        }
+        const total = totals[totals.length - 1] || 1;
+        const dur = 2600 + total * 1.2;
+        const start = performance.now();
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / dur);
+          const dist = t * total;
+          let seg = 1; while (seg < pts.length && totals[seg] < dist) seg++;
+          const a = pts[seg - 1], b = pts[Math.min(seg, pts.length - 1)];
+          const segStart = totals[seg - 1], segD = segLen[seg - 1] || 1;
+          const k = Math.min(1, (dist - segStart) / segD);
+          dot.setAttribute('cx', a[0] + (b[0] - a[0]) * k);
+          dot.setAttribute('cy', a[1] + (b[1] - a[1]) * k);
+          if (t < 1) { requestAnimationFrame(step); return; }
+          // 도착
+          svgEl.querySelectorAll('text.reslab')[end].classList.add('hit');
+          if (--remaining === 0) {
+            overlay.querySelector('.drum').textContent = '결과 확정! 🎉';
+            const flash = document.createElement('div'); flash.className = 'flashbang';
+            document.body.appendChild(flash); setTimeout(() => flash.remove(), 500);
+            setTimeout(onDone, 1900);
+          }
+        };
+        requestAnimationFrame(step);
+      });
+    }
+
+    // ---------------- 폴링 ----------------
+    async function poll() {
+      try {
+        const res = await fetch(`/api/rooms/${roomId}`);
+        if (!res.ok) { const d = await res.json(); showErr(d.error); return; }
+        const s = await res.json();
+        latestState = s;
+        window.L3D && window.L3D.sync(s, myId());
+
+        if (s.status === 'lobby') playedReveal = false;
+
+        if (s.status === 'revealing' && !playedReveal && s.ladder) {
+          playedReveal = true;
+          render(s);            // 배경 HUD를 한번 갱신(연출 중 숨겨짐)
+          playReveal(s);
+          return;
+        }
+        if (revealing) return;
+
+        const sig = JSON.stringify([s.status, s.players.map(p => [p.name, p.lane]), s.results, !!me, s.mapping]);
+        if (sig !== lastSig) { lastSig = sig; render(s); }
+      } catch (e) { /* 네트워크 일시 오류 무시 */ }
+    }
+
+    window.ladderResync = () => { if (latestState) window.L3D?.sync(latestState, myId()); };
+
+    poll();
+    setInterval(poll, 1500);
+  </script>
+
+  <!-- 3D 무대 부트스트랩 (실패하면 window.L3D 미설정 → 자동 2D 폴백) -->
+  <script type="module">
+    import { init, sync, reveal, endReveal, charCount } from '/scene.js';
+    try {
+      if (init(document.getElementById('stage'))) {
+        window.L3D = { ready: true, sync, reveal, endReveal, charCount };
+        document.body.classList.add('has3d');
+        window.ladderResync && window.ladderResync();
+      }
+    } catch (e) { console.warn('3D 비활성화 → 2D 폴백', e); }
+  </script>
+</body>
+</html>
