@@ -46,7 +46,10 @@
       <div class="err" id="err"></div>
     </div>
 
-    <p class="sub center">데이터베이스 없이 동작하는 초간단 서비스 · 방은 12시간 후 자동 삭제됩니다.<br><small style="opacity:.6">build v2 · 이름 미입력 시 랜덤 닉네임</small></p>
+    <div id="adMain" class="adslot"></div>
+
+    <p class="sub center">데이터베이스 없이 동작하는 초간단 서비스 · 방은 12시간 후 자동 삭제됩니다.<br>
+      <a href="/privacy">개인정보처리방침</a> · <small style="opacity:.6">build v2 · 이름 미입력 시 랜덤 닉네임</small></p>
   </div>
 
   <script>
@@ -111,5 +114,7 @@
       }
     });
   </script>
+  <script src="/ads.js"></script>
+  <script>window.Ads && Ads.mount(document.getElementById('adMain'), 'main');</script>
 </body>
 </html>

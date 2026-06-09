@@ -201,3 +201,17 @@ body.has3d.revealing .wrap { opacity: 0; pointer-events: none; transition: opaci
 .err { color: var(--bad); font-size: .85rem; margin-top: 8px; min-height: 1em; }
 .center { text-align: center; }
 a { color: var(--accent); }
+/* 광고 슬롯 (ID 미설정 시 비어 있으면 숨김) */
+.adslot { margin: 16px auto 4px; max-width: 680px; text-align: center; }
+.adslot:empty { display: none; }
+.ad-label { font-size: .62rem; letter-spacing: .1em; color: var(--muted); opacity: .55; margin-bottom: 4px; }
+.ad-coupang { display: flex; justify-content: center; }
+.ad-disclosure { font-size: .72rem; color: var(--muted); opacity: .85; margin: 6px 0 0; }
+
+/* 개인정보처리방침 등 본문 페이지 */
+.card.legal { text-align: left; }
+.card.legal h2 { font-size: 1rem; margin: 18px 0 6px; color: var(--accent); }
+.card.legal h2:first-child { margin-top: 0; }
+.card.legal p, .card.legal li { color: var(--text); font-size: .9rem; line-height: 1.6; margin: 6px 0; }
+.card.legal ul { margin: 6px 0; padding-left: 20px; }
+.card.legal .legal-date { color: var(--muted); font-size: .8rem; margin-top: 18px; }

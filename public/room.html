@@ -31,11 +31,13 @@
     <h1 id="title">사다리타기</h1>
     <p class="sub" id="subtitle"></p>
     <div id="app"></div>
+    <div id="adResult" class="adslot"></div>
     <div class="err" id="err"></div>
-    <p class="sub center mt"><a href="/">새 방 만들기</a></p>
+    <p class="sub center mt"><a href="/">새 방 만들기</a> · <a href="/privacy">개인정보처리방침</a></p>
   </div>
   <div class="toast" id="toast"></div>
 
+  <script src="/ads.js"></script>
   <script>
     const roomId = location.pathname.split('/').pop();
 
@@ -88,6 +90,9 @@
       else html += finishedView(s, isHost);
       app.innerHTML = html;
       wire(s, isHost);
+      // 결과 화면에서만 광고 노출 (로비/연출 중에는 비움 → :empty 로 숨김)
+      const adEl = document.getElementById('adResult');
+      if (adEl && window.Ads) { if (s.status === 'finished') Ads.mount(adEl, 'result'); else Ads.clear(adEl); }
       window.L3D && window.L3D.sync(s, myId());
     }
 

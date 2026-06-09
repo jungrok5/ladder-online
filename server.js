@@ -357,6 +357,7 @@ const server = http.createServer(async (req, res) => {
 
   // --- 정적 페이지 ---
   if (pathname === '/') return serveFile(res, path.join(PUBLIC_DIR, 'index.html'), req);
+  if (pathname === '/privacy') return serveFile(res, path.join(PUBLIC_DIR, 'privacy.html'), req);
   if (/^\/r\/[a-z0-9]+$/.test(pathname)) return serveFile(res, path.join(PUBLIC_DIR, 'room.html'), req);
 
   // 정적 자산 (디렉터리 탈출 방지): 인코딩 해제 후 정규화하고, PUBLIC_DIR 하위인지 엄격 확인
