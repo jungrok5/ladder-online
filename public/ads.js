@@ -15,7 +15,7 @@ window.ADS = {
   },
   // 쿠팡 파트너스 다이나믹 배너
   coupang: {
-    id: 995864,                  // 발급 id (숫자)
+    id: 995865,                  // 발급 id (숫자)
     trackingCode: 'AF9050118',   // 발급 trackingCode (문자)
     subId: 'ladderonline',  // 채널 아이디(게임별 성과 분리)
     slot: 'both',                // 배너 위치: 'main' | 'result' | 'both'
