@@ -234,3 +234,9 @@ a { color: var(--accent); }
   margin: 0 0 16px; line-height: 1.55;
 }
 .notice b { color: var(--accent); }
+/* 게임 소개(검색 노출용 본문) */
+.about { margin: 22px 0 6px; text-align: left; }
+.about h2 { font-size: 1.02rem; color: var(--text); margin: 0 0 8px; }
+.about p { font-size: .86rem; color: var(--muted); line-height: 1.65; margin: 0 0 8px; }
+.about ul { margin: 0; padding-left: 18px; }
+.about li { font-size: .83rem; color: var(--muted); line-height: 1.6; }
