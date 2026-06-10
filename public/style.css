@@ -227,3 +227,10 @@ a { color: var(--accent); }
 }
 .gchip:hover { border-color: var(--accent); }
 .gchip.current { border-color: var(--accent); color: var(--accent); background: rgba(255,255,255,.03); cursor: default; }
+/* 데이터 미저장 안내 박스 */
+.notice {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; padding: 11px 14px; font-size: .82rem; color: var(--text);
+  margin: 0 0 16px; line-height: 1.55;
+}
+.notice b { color: var(--accent); }
