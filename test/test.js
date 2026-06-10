@@ -177,6 +177,18 @@ async function integration() {
   assert.notStrictEqual(a1.data.name, a2.data.name, '자동 닉네임은 서로 겹치지 않음');
   ok('join: 이름 없이 참여 시 겹치지 않는 랜덤 닉네임(숫자 없음)');
 
+  // === 이상 입력 방어: 엉뚱한 타입/구조에도 500/크래시 없이 안전 처리 ===
+  let w = await http(base, 'POST', '/api/rooms', { title: { a: 1 }, laneCount: 'abc', results: 'notarray', laneMode: 5, resultsHidden: 'yes' });
+  assert.strictEqual(w.status, 200, '비정상 타입 입력도 기본값으로 방 생성');
+  let wg = await http(base, 'GET', `/api/rooms/${w.data.roomId}`);
+  assert.strictEqual(typeof wg.data.title, 'string', 'title 은 항상 문자열');
+  assert.ok(wg.data.laneCount >= 2 && wg.data.laneCount <= 12, 'laneCount 범위 보정');
+  let wj1 = await http(base, 'POST', `/api/rooms/${w.data.roomId}/join`, { name: 12345 });
+  assert.strictEqual(typeof wj1.data.name, 'string', '이름은 항상 문자열로 강제');
+  let wj2 = await http(base, 'POST', `/api/rooms/${w.data.roomId}/join`, { name: 'x', lane: {} });
+  assert.strictEqual(wj2.status, 400, '객체 lane → 400(크래시 없음)');
+  ok('이상 입력 방어: 비정상 타입에도 500/크래시 없음');
+
   // 디렉터리 트래버설 가드
   r = await fetch(base + '/../server.js').then((x) => x.status).catch(() => 'err');
   assert.notStrictEqual(r, 200, '트래버설로 server.js 노출 금지');

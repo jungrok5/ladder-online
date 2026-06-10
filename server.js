@@ -182,6 +182,7 @@ function publicState(room) {
 // ---------------------------------------------------------------------------
 
 function sendJson(res, status, obj) {
+  if (res.writableEnded || res.destroyed) return; // 끊긴 연결엔 쓰지 않음(중복/에러 방지)
   const body = JSON.stringify(obj);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(body);
@@ -189,15 +190,15 @@ function sendJson(res, status, obj) {
 
 function readBody(req) {
   return new Promise((resolve) => {
-    let data = '';
+    let data = '', done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
     req.on('data', (c) => {
       data += c;
-      if (data.length > 1e6) req.destroy();
+      if (data.length > 1e6) { data = ''; req.destroy(); finish({}); } // 과대 페이로드 차단 + 대기 종료
     });
-    req.on('end', () => {
-      try { resolve(data ? JSON.parse(data) : {}); }
-      catch { resolve({}); }
-    });
+    req.on('end', () => { try { finish(data ? JSON.parse(data) : {}); } catch { finish({}); } });
+    req.on('error', () => finish({}));   // 끊김/오류 시에도 핸들러가 멈추지 않도록
+    req.on('close', () => finish({}));
   });
 }
 
