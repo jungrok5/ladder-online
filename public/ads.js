@@ -27,17 +27,6 @@ window.ADS = {
 };
 
 (function () {
-  let coupangLoading = null;
-
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src; s.async = true;
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
   function adLabel() {
     const l = document.createElement('div');
     l.className = 'ad-label'; l.textContent = 'AD';
@@ -59,25 +48,31 @@ window.ADS = {
     el.appendChild(s);
   }
 
-  // 쿠팡 파트너스 다이나믹 배너 — 컨테이너 안에 인라인 스크립트를 넣어
-  // 위젯이 '이 위치'에 배너를 그리도록 한다(외부에서 호출하면 엉뚱한 곳에 붙음).
+  // 쿠팡 파트너스 다이나믹 배너 — 격리된 iframe 안에서 렌더한다.
+  // (쿠팡 g.js 는 호출 위치에 iframe을 직접 꽂는데, SPA에선 엉뚱한 곳(페이지 최상단)에
+  //  붙어 레이아웃이 깨진다. 전용 iframe(srcdoc)에 가두면 정확히 이 자리에 고정된다.)
   function mountCoupang(el) {
     const c = window.ADS.coupang;
-    const inject = () => {
-      const cfg = {
-        id: c.id, template: c.template, trackingCode: c.trackingCode,
-        subId: c.subId || null, width: String(c.width), height: String(c.height),
-      };
-      const s = document.createElement('script');
-      s.text = 'new PartnersCoupang.G(' + JSON.stringify(cfg) + ');';
-      el.appendChild(s);
-      const d = document.createElement('p');
-      d.className = 'ad-disclosure'; d.textContent = window.ADS.disclosure;
-      el.appendChild(d);
-    };
-    if (window.PartnersCoupang) { inject(); return; }
-    if (!coupangLoading) coupangLoading = loadScript('https://ads-partners.coupang.com/g.js');
-    coupangLoading.then(inject).catch(() => {});
+    const opts = JSON.stringify({
+      id: c.id, template: c.template, trackingCode: c.trackingCode,
+      subId: c.subId || null, width: String(c.width), height: String(c.height), tsource: '',
+    });
+    const doc =
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<style>html,body{margin:0;padding:0;overflow:hidden}</style></head><body>' +
+      '<script src="https://ads-partners.coupang.com/g.js"><\/script>' +
+      '<script>new PartnersCoupang.G(' + opts + ');<\/script>' +
+      '</body></html>';
+    const f = document.createElement('iframe');
+    f.title = '쿠팡 파트너스 광고';
+    f.setAttribute('scrolling', 'no');
+    f.setAttribute('frameborder', '0');
+    f.style.cssText = 'display:block;border:0;width:' + c.width + 'px;max-width:100%;height:' + c.height + 'px;margin:0 auto;';
+    f.srcdoc = doc;
+    el.appendChild(f);
+    const d = document.createElement('p');
+    d.className = 'ad-disclosure'; d.textContent = window.ADS.disclosure;
+    el.appendChild(d);
   }
 
   window.Ads = {
