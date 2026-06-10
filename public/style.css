@@ -205,7 +205,7 @@ a { color: var(--accent); }
 .adslot { margin: 16px auto 4px; max-width: 680px; text-align: center; }
 .adslot:empty { display: none; }
 .ad-label { font-size: .62rem; letter-spacing: .1em; color: var(--muted); opacity: .55; margin-bottom: 4px; }
-.ad-coupang { display: flex; justify-content: center; }
+.ad-coupang { display: flex; justify-content: center; max-width: 100%; overflow-x: auto; }
 .ad-disclosure { font-size: .72rem; color: var(--muted); opacity: .85; margin: 6px 0 0; }
 
 /* 개인정보처리방침 등 본문 페이지 */

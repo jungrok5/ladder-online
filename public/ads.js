@@ -15,12 +15,12 @@ window.ADS = {
   },
   // 쿠팡 파트너스 다이나믹 배너
   coupang: {
-    id: 0,                 // 발급 id (숫자)
-    trackingCode: '',      // 발급 trackingCode (문자)
-    subId: 'ladderonline',         // 게임 구분용(성과 분리)
-    slot: 'main',          // 배너 위치: 'main' | 'result'
+    id: 995864,                  // 발급 id (숫자)
+    trackingCode: 'AF9050118',   // 발급 trackingCode (문자)
+    subId: 'ladderonline',  // 채널 아이디(게임별 성과 분리)
+    slot: 'both',                // 배너 위치: 'main' | 'result' | 'both'
     template: 'carousel',
-    width: 680,
+    width: 360,
     height: 140,
   },
   disclosure: '이 게시물은 쿠팡 파트너스 활동의 일환으로 일정액의 수수료를 받습니다.',
@@ -59,23 +59,25 @@ window.ADS = {
     el.appendChild(s);
   }
 
-  // 쿠팡 파트너스 다이나믹 배너
+  // 쿠팡 파트너스 다이나믹 배너 — 컨테이너 안에 인라인 스크립트를 넣어
+  // 위젯이 '이 위치'에 배너를 그리도록 한다(외부에서 호출하면 엉뚱한 곳에 붙음).
   function mountCoupang(el) {
     const c = window.ADS.coupang;
-    const run = () => {
-      try {
-        new window.PartnersCoupang.G({
-          id: c.id, trackingCode: c.trackingCode, subId: c.subId || null,
-          template: c.template, width: String(c.width), height: String(c.height),
-        });
-      } catch (e) { /* 무시 */ }
+    const inject = () => {
+      const cfg = {
+        id: c.id, template: c.template, trackingCode: c.trackingCode,
+        subId: c.subId || null, width: String(c.width), height: String(c.height),
+      };
+      const s = document.createElement('script');
+      s.text = 'new PartnersCoupang.G(' + JSON.stringify(cfg) + ');';
+      el.appendChild(s);
       const d = document.createElement('p');
       d.className = 'ad-disclosure'; d.textContent = window.ADS.disclosure;
       el.appendChild(d);
     };
-    if (window.PartnersCoupang) { run(); return; }
+    if (window.PartnersCoupang) { inject(); return; }
     if (!coupangLoading) coupangLoading = loadScript('https://ads-partners.coupang.com/g.js');
-    coupangLoading.then(run).catch(() => {});
+    coupangLoading.then(inject).catch(() => {});
   }
 
   window.Ads = {
@@ -85,7 +87,8 @@ window.ADS = {
       const cfg = window.ADS; let any = false;
       const unit = cfg.adfit && cfg.adfit[slot];
       if (unit) { el.appendChild(adLabel()); mountAdfit(el, unit); any = true; }
-      if (cfg.coupang && cfg.coupang.id && cfg.coupang.trackingCode && cfg.coupang.slot === slot) {
+      const cp = cfg.coupang;
+      if (cp && cp.id && cp.trackingCode && (cp.slot === slot || cp.slot === 'both')) {
         if (!any) el.appendChild(adLabel());
         mountCoupang(el); any = true;
       }
