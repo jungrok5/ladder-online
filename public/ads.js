@@ -17,7 +17,7 @@ window.ADS = {
   coupang: {
     id: 0,                 // 발급 id (숫자)
     trackingCode: '',      // 발급 trackingCode (문자)
-    subId: 'ladder',         // 게임 구분용(성과 분리)
+    subId: 'ladderonline',         // 게임 구분용(성과 분리)
     slot: 'main',          // 배너 위치: 'main' | 'result'
     template: 'carousel',
     width: 680,
