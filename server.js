@@ -213,29 +213,75 @@ const MIME = {
 };
 const GZIP_TYPES = new Set(['.html', '.css', '.js', '.svg', '.json', '.txt']);
 
+// ---- 레이트 리미팅 (IP 기준, 인메모리·무의존성) ----
+const RL_WINDOW = 60 * 1000;   // 1분 창
+const RL_GENERAL = 3000;       // IP당 1분 전체 API 요청 상한(공유 IP 여유 + 폭주 차단)
+const RL_CREATE = 30;          // IP당 1분 방 생성 상한
+const rlGeneral = new Map();   // ip -> { count, resetAt }
+const rlCreate = new Map();
+
+function clientIp(req) {
+  const cf = req.headers['cf-connecting-ip']; // Cloudflare(=Render 엣지)가 설정 → 위조 불가
+  if (cf) return String(cf).trim();
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return req.socket.remoteAddress || 'unknown';
+}
+function rateLimit(map, key, limit) {
+  const now = Date.now();
+  let e = map.get(key);
+  if (!e || now >= e.resetAt) { e = { count: 0, resetAt: now + RL_WINDOW }; map.set(key, e); }
+  e.count++;
+  return e.count <= limit; // true = 허용
+}
+function send429(res) {
+  if (res.writableEnded || res.destroyed) return;
+  res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Retry-After': '10' });
+  res.end(JSON.stringify({ error: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.' }));
+}
+
+// ---- 정적 파일 인메모리 캐시 (디스크 읽기·gzip 1회만) ----
+// 파일은 배포(프로세스 재시작) 전엔 바뀌지 않으므로 메모리에 보관해도 안전하다.
+const fileCache = new Map(); // filePath -> { buf, gz, mime, immutable }
+
+function sendCached(res, req, e) {
+  if (res.writableEnded || res.destroyed) return;
+  const headers = {
+    'Content-Type': e.mime,
+    'Cache-Control': e.immutable ? 'public, max-age=31536000, immutable' : 'no-store, must-revalidate',
+  };
+  const acceptsGzip = req && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+  if (acceptsGzip && e.gz) {
+    headers['Content-Encoding'] = 'gzip';
+    headers['Vary'] = 'Accept-Encoding';
+    res.writeHead(200, headers); res.end(e.gz);
+  } else {
+    res.writeHead(200, headers); res.end(e.buf);
+  }
+}
+
 function serveFile(res, filePath, req) {
+  const hit = fileCache.get(filePath);
+  if (hit) return sendCached(res, req, hit);
   fs.readFile(filePath, (err, buf) => {
-    if (err) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not found'); return; }
+    if (err) {
+      if (res.writableEnded || res.destroyed) return;
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not found'); return;
+    }
     const ext = path.extname(filePath);
     // 라이브러리/에셋(/vendor, /assets)은 불변 → 장기 캐시. 그 외(HTML/CSS)는 항상 최신.
     const immutable = /[\\/](vendor|assets)[\\/]/.test(filePath);
-    const headers = {
-      'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-store, must-revalidate',
-    };
-    const acceptsGzip = req && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
-    if (acceptsGzip && GZIP_TYPES.has(ext)) {
+    const e = { buf, gz: null, mime: MIME[ext] || 'application/octet-stream', immutable };
+    if (GZIP_TYPES.has(ext)) {
       zlib.gzip(buf, (gzErr, gz) => {
-        if (gzErr) { res.writeHead(200, headers); res.end(buf); return; }
-        headers['Content-Encoding'] = 'gzip';
-        headers['Vary'] = 'Accept-Encoding';
-        res.writeHead(200, headers);
-        res.end(gz);
+        if (!gzErr) e.gz = gz;
+        fileCache.set(filePath, e);
+        sendCached(res, req, e);
       });
-      return;
+    } else {
+      fileCache.set(filePath, e);
+      sendCached(res, req, e);
     }
-    res.writeHead(200, headers);
-    res.end(buf);
   });
 }
 
@@ -250,6 +296,10 @@ const server = http.createServer(async (req, res) => {
   // --- API ---
   if (pathname.startsWith('/api/')) {
     try {
+      const ip = clientIp(req);
+      if (!rateLimit(rlGeneral, ip, RL_GENERAL)) return send429(res);
+      if (pathname === '/api/rooms' && req.method === 'POST' && !rateLimit(rlCreate, ip, RL_CREATE)) return send429(res);
+
       // 방 생성
       if (pathname === '/api/rooms' && req.method === 'POST') {
         const body = await readBody(req);
@@ -372,6 +422,15 @@ const server = http.createServer(async (req, res) => {
 
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not found');
 });
+
+// 레이트리밋 기록 정리 (만료 항목 제거 + 안전밸브) — 메모리 누수 방지
+setInterval(() => {
+  const now = Date.now();
+  for (const map of [rlGeneral, rlCreate]) {
+    if (map.size > 100000) { map.clear(); continue; } // 비정상 폭증 시 안전밸브
+    for (const [k, e] of map) if (now >= e.resetAt) map.delete(k);
+  }
+}, 60 * 1000).unref();
 
 // 오래된 방 정리 (12시간 지난 방 제거) — 메모리 누수 방지
 setInterval(() => {
