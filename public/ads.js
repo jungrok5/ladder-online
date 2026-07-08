@@ -13,9 +13,9 @@ window.ADS = {
     width: 320,
     height: 100,
   },
-  // 쿠팡 파트너스 다이나믹 배너 (⛔ 임시 비활성: 보안 검토 중 — enabled:true 로 재활성)
+  // 쿠팡 파트너스 다이나믹 배너
   coupang: {
-    enabled: false,
+    enabled: true,
     id: 995865,                  // 발급 id (숫자)
     trackingCode: 'AF9050118',   // 발급 trackingCode (문자)
     subId: 'ladderonline',  // 채널 아이디(게임별 성과 분리)
