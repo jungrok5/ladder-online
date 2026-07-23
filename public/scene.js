@@ -185,13 +185,14 @@ function loop() {
 
   const c0 = fpMode ? fpTarget() : null;
   if (c0) {
-    // 1인칭: 캐릭터 머리 약간 뒤·위에서 진행 방향을 바라본다
-    const ry = c0.group.rotation.y;
-    _fwd.set(Math.sin(ry), 0, Math.cos(ry));
-    _eye.copy(c0.group.position).addScaledVector(_fwd, -1.15); _eye.y += 1.55;
-    _lk.copy(c0.group.position).addScaledVector(_fwd, 5.0); _lk.y += 0.45;
-    camera.position.lerp(_eye, Math.min(1, dt * 9));
-    curLook.lerp(_lk, Math.min(1, dt * 9));
+    // 1인칭: 시선은 항상 목적지(+z) 방향으로 고정 — 캐릭터가 옆칸으로 꺾여도
+    // 카메라가 회전하지 않아 어지럽지 않다. 위치만 캐릭터를 부드럽게 따라간다.
+    const p = c0.group.position;
+    _eye.set(p.x, p.y + 1.55, p.z - 1.15);   // 캐릭터 뒤·위 (뒤 = -z)
+    _lk.set(p.x, p.y + 0.45, p.z + 5.0);       // 골(+z) 방향 고정
+    camera.position.lerp(_eye, Math.min(1, dt * 6));
+    curLook.lerp(_lk, Math.min(1, dt * 6));
+    camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
   } else {
     camera.position.lerp(camPos, Math.min(1, dt * 2.5));
