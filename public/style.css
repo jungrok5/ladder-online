@@ -240,3 +240,8 @@ a { color: var(--accent); }
 .about p { font-size: .86rem; color: var(--muted); line-height: 1.65; margin: 0 0 8px; }
 .about ul { margin: 0; padding-left: 18px; }
 .about li { font-size: .83rem; color: var(--muted); line-height: 1.6; }
+
+/* 사다리 길이 선택 버튼 */
+.lenbtns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.lenbtn { background: #0d1130; border: 2px solid rgba(255,255,255,.1); font-size: .9rem; padding: 11px 0; color: var(--text); }
+.lenbtn.selected { border-color: var(--accent2); background: #2a1330; }

@@ -171,6 +171,7 @@
           <span class="ores">${escapeHtml(r.res ?? '?')}</span></li>`;
       }
       html += `</ul>`;
+      html += `<button class="block mt secondary" id="replayBtn">▶️ 연출 다시 보기</button>`;
       if (isHost) html += `<button class="block mt" id="resetBtn">🔀 다시 섞기 (같은 멤버)</button>`;
       html += `</div>`;
       return html;
@@ -215,6 +216,11 @@
       if (resetBtn) resetBtn.onclick = async () => {
         try { await api('/reset', { hostToken }); playedReveal = false; lastSig = ''; poll(); }
         catch (e) { showErr(e.message); }
+      };
+
+      const replayBtn = document.getElementById('replayBtn');
+      if (replayBtn) replayBtn.onclick = () => {
+        if (latestState && latestState.ladder && latestState.mapping) playReveal(latestState);
       };
     }
 
@@ -343,10 +349,17 @@
 
         if (s.status === 'lobby') playedReveal = false;
 
-        if (s.status === 'revealing' && !playedReveal && s.ladder) {
+        // 연출 자동 재생: revealing 이면 바로, finished(공유 링크로 처음 들어온 경우)면 리플레이
+        if ((s.status === 'revealing' || s.status === 'finished') && !playedReveal && s.ladder && s.mapping) {
           playedReveal = true;
-          render(s);            // 배경 HUD를 한번 갱신(연출 중 숨겨짐)
-          playReveal(s);
+          if (s.status === 'finished') {
+            document.body.classList.add('revealing'); // 결과 스포일러 방지(HUD 숨김)
+            revealing = true;
+            setTimeout(() => playReveal(s), 1400);     // 3D 캐릭터 로딩 여유 후 리플레이
+          } else {
+            render(s);            // 배경 HUD를 한번 갱신(연출 중 숨겨짐)
+            playReveal(s);
+          }
           return;
         }
         if (revealing) return;

@@ -96,6 +96,7 @@ function createRoom(body) {
     results: sanitizeResults(body.results, laneCount),
     resultsHidden: body.resultsHidden === true, // 기본: 공개
     laneMode: LANE_MODES.includes(body.laneMode) ? body.laneMode : 'pick',
+    ladderLength: LADDER_LENGTHS[body.ladderLength] ? body.ladderLength : 'medium',
     hostToken: token(),
     status: 'lobby', // 'lobby' | 'revealing' | 'finished'
     createdAt: Date.now(),
@@ -126,8 +127,12 @@ function firstFreeLane(room) {
  * - 인접 가로대 금지(같은 행에서 한 세로줄이 좌/우 동시에 연결되지 않도록).
  *   덕분에 경로 추적이 항상 전단사(bijection)가 된다.
  */
-function buildLadder(N) {
-  const rows = Math.max(8, Math.min(40, Math.round(N * 1.8) + 4)); // 가독성 있는 밀도
+// 길이 프리셋: 값이 클수록 사다리가 길고(가로대 많고) 복잡·재밌어진다.
+const LADDER_LENGTHS = { short: 1.0, medium: 1.7, long: 2.8, xlong: 4.2 };
+
+function buildLadder(N, length) {
+  const factor = LADDER_LENGTHS[length] || LADDER_LENGTHS.medium;
+  const rows = Math.max(6, Math.min(64, Math.round(N * factor) + 4)); // 지정 길이에 따른 행 수
   const H = [];
   for (let r = 0; r < rows; r++) {
     const row = new Array(N - 1).fill(false);
@@ -157,6 +162,17 @@ function computeMapping(ladder, N) {
   const mapping = new Array(N);
   for (let s = 0; s < N; s++) mapping[s] = tracePath(ladder, N, s);
   return mapping;
+}
+
+// 아무도 자리가 안 바뀌는(전부 제자리) 심심한 사다리를 피한다 — 최소 한 명은 이동하게 재생성.
+function buildLadderNonTrivial(N, length) {
+  let ladder = buildLadder(N, length);
+  for (let t = 0; t < 16 && N >= 2; t++) {
+    const m = computeMapping(ladder, N);
+    if (m.some((v, i) => v !== i)) break; // 뒤섞임 있음 → OK
+    ladder = buildLadder(N, length);       // 항등(전부 제자리)이면 다시 생성
+  }
+  return ladder;
 }
 
 /** 클라이언트에 보낼 상태. 시작 전에는 ladder/mapping 을 노출하지 않는다. */
@@ -376,7 +392,7 @@ const server = http.createServer(async (req, res) => {
             for (const p of room.players) if (p.lane == null) p.lane = free[k++];
           }
 
-          room.ladder = buildLadder(room.laneCount);
+          room.ladder = buildLadderNonTrivial(room.laneCount, room.ladderLength);
           room.mapping = computeMapping(room.ladder, room.laneCount);
           room.status = 'revealing';
           return sendJson(res, 200, publicState(room));
@@ -447,5 +463,5 @@ if (require.main === module) {
     console.log(`🪜  사다리타기 서버 실행 중: http://localhost:${PORT}`);
   });
 } else {
-  module.exports = { server, buildLadder, tracePath, computeMapping, sanitizeLaneCount, sanitizeResults, MAX_LANES, MIN_LANES };
+  module.exports = { server, buildLadder, buildLadderNonTrivial, tracePath, computeMapping, sanitizeLaneCount, sanitizeResults, MAX_LANES, MIN_LANES };
 }

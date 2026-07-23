@@ -47,6 +47,15 @@
       </div>
       <p class="hint">2 ~ <span id="maxLanes">12</span>칸. 결과 개수는 칸 수와 같습니다.</p>
 
+      <label class="mt">사다리 길이</label>
+      <div class="lenbtns">
+        <button type="button" class="lenbtn" data-len="short">짧게</button>
+        <button type="button" class="lenbtn selected" data-len="medium">보통</button>
+        <button type="button" class="lenbtn" data-len="long">길게</button>
+        <button type="button" class="lenbtn" data-len="xlong">아주 길게</button>
+      </div>
+      <p class="hint">길수록 더 복잡하고 재밌어요 🎢</p>
+
       <label class="mt">각 칸의 결과 (자유 입력)</label>
       <div id="results" class="results"></div>
 
@@ -110,6 +119,16 @@
     document.getElementById('plus').onclick = () => setCount(laneCount + 1);
     renderResults();
 
+    // 사다리 길이 선택
+    let ladderLength = 'medium';
+    document.querySelectorAll('.lenbtn').forEach((el) => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.lenbtn').forEach((b) => b.classList.remove('selected'));
+        el.classList.add('selected');
+        ladderLength = el.dataset.len;
+      });
+    });
+
     const btn = document.getElementById('create');
     btn.addEventListener('click', async () => {
       captureInputs();
@@ -123,6 +142,7 @@
           body: JSON.stringify({
             title: document.getElementById('title').value,
             laneCount,
+            ladderLength,         // 사다리 길이(짧게~아주 길게)
             results,
             laneMode: 'pick',     // 각자 칸을 직접 선택
             resultsHidden: false, // 결과는 처음부터 공개

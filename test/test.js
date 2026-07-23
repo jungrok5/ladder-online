@@ -47,6 +47,21 @@ assert.strictEqual(rs[1], '결과 2', '빈 칸 기본값');
 assert.strictEqual(rs[2].length, 24, '결과 길이 제한 24');
 ok('sanitizeResults 길이/기본값/슬라이스');
 
+section('사다리 길이 / 비항등 단위 테스트');
+{
+  const { buildLadderNonTrivial } = mod;
+  // 길이 지정: 아주 길게 > 짧게 (행 수)
+  assert.ok(buildLadder(6, 'xlong').rows > buildLadder(6, 'short').rows, '아주 길게 > 짧게');
+  // 알 수 없는 길이/미지정 → 기본(medium)로 동작(에러 없음)
+  assert.ok(buildLadder(4).rows >= 6 && buildLadder(4, 'haxx').rows >= 6, '미지정/이상값 기본 처리');
+  // 비항등 보장: N=2 에서 항상 자리 뒤바뀜(0↔1)
+  for (let i = 0; i < 30; i++) {
+    const m = computeMapping(buildLadderNonTrivial(2, 'medium'), 2);
+    assert.ok(m[0] !== 0 || m[1] !== 1, 'N=2 비항등 보장(자리 바뀜)');
+  }
+}
+ok('사다리 길이 지정 + 비항등(심심한 사다리 방지)');
+
 // ---------------------------------------------------------------------------
 // 2) 통합 테스트 (실제 HTTP)
 // ---------------------------------------------------------------------------
