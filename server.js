@@ -23,8 +23,8 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_ROOMS = 5000;     // 메모리 보호: 동시 보관 방 수 상한
 const MIN_LANES = 2;
-const MAX_LANES = 12;       // 가독성 상한 (모바일에서도 잘 보이는 범위)
-const HARD_CAP_LANES = 50;  // 어떤 경우에도 넘지 않는 안전 한계
+const MAX_LANES = 100;      // 참가 인원 상한 (최대 100명)
+const HARD_CAP_LANES = 100; // 어떤 경우에도 넘지 않는 안전 한계
 const MAX_RESULT_LEN = 18;  // 각 결과 텍스트 길이 제한 (리플레이 URL 예측 가능하게 축소)
 const MAX_NAME_LEN = 14;    // 닉네임 길이 제한 (리플레이 URL 예측 가능하게 축소)
 

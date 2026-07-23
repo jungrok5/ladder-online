@@ -247,7 +247,12 @@
       }
       html += `</ul>`;
       html += `<button class="block mt secondary" id="replayBtn">▶️ 연출 다시 보기</button>`;
-      html += `<button class="block mt secondary" id="replayLinkBtn">🔗 리플레이 링크 복사</button>`;
+      if ((s.laneCount || 0) <= 12) {
+        html += `<button class="block mt secondary" id="replayLinkBtn">🔗 리플레이 링크 복사</button>`;
+        html += `<p class="hint">🔗 서버에 저장하지 않고 결과 데이터를 링크(URL) 안에 담아요 — 링크만 있으면 언제든 그대로 다시 재생됩니다.</p>`;
+      } else {
+        html += `<p class="hint">🔗 리플레이 링크는 12명 이하에서만 가능해요 (결과 데이터를 URL에 담는 방식이라, 인원이 많으면 링크가 너무 길어집니다).</p>`;
+      }
       if (isHost) html += `<button class="block mt" id="resetBtn">🔀 다시 섞기 (같은 멤버)</button>`;
       html += `</div>`;
       return html;

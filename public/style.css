@@ -74,10 +74,17 @@ button.block { width: 100%; }
 /* 칸 수 스텝퍼 */
 .stepper { display: flex; align-items: center; gap: 14px; }
 .stepper button { width: 52px; height: 52px; font-size: 1.6rem; padding: 0; background: #2c335f; }
-.stepper .count {
-  font-size: 2rem; font-weight: 800; min-width: 60px; text-align: center;
+.stepper input.count {
+  width: 96px; height: 52px; padding: 0;
+  font-size: 2rem; font-weight: 800; text-align: center;
   font-variant-numeric: tabular-nums;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
+  background: #0d1130; color: var(--text);
+  -moz-appearance: textfield; appearance: textfield;
 }
+.stepper input.count:focus { outline: 2px solid var(--accent); }
+.stepper input.count::-webkit-outer-spin-button,
+.stepper input.count::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* 결과 입력 */
 .results { display: grid; gap: 8px; }
