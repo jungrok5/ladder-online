@@ -492,10 +492,10 @@
         window.L3D = { ready: true, sync, reveal, endReveal, charCount, setViewMode };
         document.body.classList.add('has3d');
         window.ladderResync && window.ladderResync();
-        // 시점 전환 버튼: 기본 → TPS → 줌인 → 순환
+        // 시점 전환 버튼: 기본 → 줌인 → TPS → 순환 (점점 가까워짐)
         const fpBtn = document.getElementById('fpBtn');
-        const MODES = ['default', 'tps', 'zoom'];
-        const LABELS = { default: '🎥 시점: 기본', tps: '🎥 시점: TPS', zoom: '🎥 시점: 줌인' };
+        const MODES = ['default', 'zoom', 'tps'];
+        const LABELS = { default: '🎥 시점: 기본', zoom: '🎥 시점: 줌인', tps: '🎥 시점: TPS' };
         let vi = 0;
         if (fpBtn) fpBtn.onclick = () => {
           vi = (vi + 1) % MODES.length;

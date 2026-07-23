@@ -41,9 +41,10 @@ let resultLabels = [];         // 결과 CSS2D 라벨
 let cloudPuffs = [];           // 골 앞을 가리는 구름 (칸별)
 
 let walkSpeed = SPEED;         // 이번 연출의 하강 속도(길이에 맞춰 조정)
-let viewMode = 'default';      // 'default'(오버뷰) | 'tps'(캐릭터 뒤) | 'zoom'(캐릭터 근처 줌인)
+let viewMode = 'default';      // 'default'(오버뷰) | 'zoom'(오버뷰 줌인) | 'tps'(캐릭터 뒤)
 let myPlayerId = null;         // 내 캐릭터 id (추적 대상)
-const isFollow = () => viewMode === 'tps' || viewMode === 'zoom';
+const isFollow = () => viewMode === 'tps'; // 캐릭터 추적(+드래그 회전)은 TPS만
+const ZOOM_FACTOR = 0.5;       // 줌인: 기본 오버뷰 거리의 이 비율까지 당김(각도 동일)
 
 // 추적 뷰에서 좌우 드래그로 시야 회전 → 놓으면 정면(골 방향)으로 복귀
 let fpYaw = 0;                 // 현재 적용된 시야 좌우 각(rad)
@@ -241,17 +242,10 @@ function loop() {
 
   const c0 = isFollow() ? fpTarget() : null;
   if (c0) {
-    // 캐릭터를 따라가는 뷰. 위치만 따라가고 시선은 진행 방향(+z) 기준(+드래그 각).
+    // TPS: 캐릭터 뒤·위에서 진행 방향(+z)을 바라봄. 캐릭터가 시야를 가리지 않고 골도 함께 보임.
     const p = c0.group.position;
-    if (viewMode === 'zoom') {
-      // 줌인: 인원이 많아 기본 뷰가 너무 먼 경우용. 캐릭터 근처지만 TPS보다 넓게.
-      _eye.set(p.x, p.y + 6.0, p.z - 9.0);
-      _lk.set(p.x, p.y + 0.3, p.z + 3.0);
-    } else {
-      // TPS: 캐릭터 뒤·위에서 진행 방향을 바라봄. 캐릭터가 시야를 가리지 않고 골도 함께 보임.
-      _eye.set(p.x, p.y + 2.7, p.z - 3.4);       // 더 뒤·더 위 (뒤 = -z)
-      _lk.set(p.x, p.y + 0.15, p.z + 4.5);        // 앞쪽 골(+z)을 살짝 내려다봄
-    }
+    _eye.set(p.x, p.y + 2.7, p.z - 3.4);       // 더 뒤·더 위 (뒤 = -z)
+    _lk.set(p.x, p.y + 0.15, p.z + 4.5);        // 앞쪽 골(+z)을 살짝 내려다봄
     camera.position.lerp(_eye, Math.min(1, dt * 6));
     // 좌우 드래그 각을 목표로 부드럽게 이동(드래그 중엔 빠르게, 놓으면 스프링백)
     fpYaw += (fpYawTarget - fpYaw) * Math.min(1, dt * (fpDragging ? 18 : 6));
@@ -266,8 +260,15 @@ function loop() {
     camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
   } else {
-    camera.position.lerp(camPos, Math.min(1, dt * 2.5));
+    // 기본 오버뷰, 또는 그 오버뷰를 각도 그대로 당긴 줌인.
+    if (viewMode === 'zoom') {
+      _eye.subVectors(camPos, camLook).multiplyScalar(ZOOM_FACTOR).add(camLook);
+      camera.position.lerp(_eye, Math.min(1, dt * 2.5));
+    } else {
+      camera.position.lerp(camPos, Math.min(1, dt * 2.5));
+    }
     curLook.lerp(camLook, Math.min(1, dt * 2.5));
+    camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
   }
 

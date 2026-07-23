@@ -413,6 +413,14 @@ const server = http.createServer(async (req, res) => {
             for (const p of room.players) if (p.lane == null) p.lane = free[k++];
           }
 
+          // 빈 칸 자동 채우기: 방장 혼자(또는 일부 인원)만 있어도 입력한 인원(칸)을
+          // 모두 채운다 → 혼자 돌려보고 결과를 남들에게 보여줄 수 있음. (자동 참가자)
+          const takenNow = takenLanes(room);
+          for (let i = 0; i < room.laneCount; i++) {
+            if (takenNow.has(i)) continue;
+            room.players.push({ id: token(), name: uniqueRandomName(room), lane: i, bot: true });
+          }
+
           room.ladderSeed = pickLadderSeed(room.laneCount, room.ladderLength);
           room.ladder = buildLadderFromSeed(room.laneCount, room.ladderLength, room.ladderSeed);
           room.mapping = computeMapping(room.ladder, room.laneCount);

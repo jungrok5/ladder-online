@@ -174,7 +174,13 @@ async function integration() {
   r = await http(base, 'POST', `/api/rooms/${r2.data.roomId}/start`, { hostToken: r2.data.hostToken });
   assert.strictEqual(r.status, 200, '솔로(1명) start 허용');
   assert.strictEqual(r.data.status, 'revealing');
-  ok('start: 0명 거부(400), 솔로(1명) 허용(200)');
+  // 솔로(1명)로 시작해도 빈 칸이 자동 참가자로 모두 채워진다(혼자 돌려보고 공유)
+  assert.strictEqual(r.data.players.length, 4, '솔로 시작 시 빈 칸 자동 채움(4칸=4명)');
+  const soloLanes = r.data.players.map((p) => p.lane);
+  assert.ok(soloLanes.every((l) => l != null), '자동 채움: 모두 배정');
+  assert.strictEqual(new Set(soloLanes).size, 4, '자동 채움: 칸 중복 없음(0~3)');
+  assert.strictEqual(new Set(r.data.players.map((p) => p.name)).size, 4, '자동 채움: 이름 중복 없음');
+  ok('start: 0명 거부(400), 솔로(1명) 허용 + 빈 칸 자동 채움');
 
   // random 모드: 시작 시 칸 일괄 배정 + reset 시 칸 비움
   let rr = await http(base, 'POST', '/api/rooms', { laneCount: 5, results: ['a','b','c','d','e'], laneMode: 'random' });
