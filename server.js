@@ -96,7 +96,7 @@ function createRoom(body) {
     results: sanitizeResults(body.results, laneCount),
     resultsHidden: body.resultsHidden === true, // 기본: 공개
     laneMode: LANE_MODES.includes(body.laneMode) ? body.laneMode : 'pick',
-    ladderLength: LADDER_LENGTHS[body.ladderLength] ? body.ladderLength : 'medium',
+    ladderLength: LADDER_LENGTHS[body.ladderLength] ? body.ladderLength : 'xlong', // 항상 아주 길게(기본)
     hostToken: token(),
     status: 'lobby', // 'lobby' | 'revealing' | 'finished'
     createdAt: Date.now(),
