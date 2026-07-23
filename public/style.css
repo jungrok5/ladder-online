@@ -283,3 +283,22 @@ body.has3d .fpbtn { display: block; }
 body.has3d.finished3d .sheettoggle { display: block; }
 body.has3d.revealing .sheettoggle { display: none; } /* 연출 중엔 숨김 */
 body.has3d.sheet-collapsed .sheettoggle { bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+/* ===== 세로 시네마틱 오버레이 (숏츠용) ===== */
+.cine { display: none; position: fixed; inset: 0; z-index: 7; pointer-events: none; }
+body.cinematic .cine { display: block; }
+.cine .cinebar {
+  position: absolute; left: 0; right: 0; height: 8vh;
+  background: #000;
+}
+.cine .cinebar.top { top: 0; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.cine .cinebar.bottom { bottom: 0; box-shadow: 0 -6px 18px rgba(0,0,0,.5); }
+.cine .cinemark {
+  position: absolute; left: 0; right: 0; bottom: calc(8vh + 12px);
+  text-align: center; color: rgba(255,255,255,.92);
+  font-size: .82rem; font-weight: 800; letter-spacing: .01em;
+  text-shadow: 0 2px 8px #000; padding: 0 12px;
+}
+/* 시네마틱(결과 화면)일 땐 결과 시트를 접어 화면을 깨끗하게 */
+body.has3d.cinematic.finished3d .wrap { transform: translateY(105%); }
+body.has3d.cinematic .sheettoggle { display: none; }

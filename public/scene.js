@@ -271,6 +271,18 @@ function loop() {
     curLook.lerp(_lk, Math.min(1, dt * 4));
     camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
+  } else if (viewMode === 'cinematic' && (zc = fpTarget())) {
+    // 세로 시네마틱: 내 캐릭터를 낮고 가깝게 따라가며 좌우로 천천히 스웨이(연출감).
+    // 골(앞쪽)을 향해 살짝 올려다봐 세로 화면에 잘 담긴다. (숏츠용)
+    const p = zc.group.position;
+    const t = now * 0.0004;
+    const sway = Math.sin(t) * 2.3;
+    _eye.set(p.x + sway, p.y + 2.3, p.z - 5.2);
+    _lk.set(p.x - sway * 0.25, p.y + 0.55, p.z + 5.0);
+    camera.position.lerp(_eye, Math.min(1, dt * 3.2));
+    curLook.lerp(_lk, Math.min(1, dt * 3.2));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(curLook);
   } else {
     // 기본 오버뷰(사다리 전체).
     camera.position.lerp(camPos, Math.min(1, dt * 2.5));
@@ -702,9 +714,9 @@ export function endReveal() {
   document.querySelectorAll('.flashbang').forEach((e) => e.remove());
 }
 
-// 시점 전환: 'default'(오버뷰) | 'tps'(캐릭터 뒤) | 'zoom'(캐릭터 근처 줌인)
+// 시점 전환: 'default' | 'zoom' | 'tps' | 'cinematic'(세로 시네마틱)
 export function setViewMode(mode) {
-  viewMode = (mode === 'tps' || mode === 'zoom') ? mode : 'default';
+  viewMode = ['tps', 'zoom', 'cinematic'].includes(mode) ? mode : 'default';
   if (!isFollow()) { fpDragging = false; fpYawTarget = 0; fpYaw = 0; }
 }
 
