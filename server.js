@@ -128,11 +128,11 @@ function firstFreeLane(room) {
  *   덕분에 경로 추적이 항상 전단사(bijection)가 된다.
  */
 // 길이 프리셋: 값이 클수록 사다리가 길고(가로대 많고) 복잡·재밌어진다.
-const LADDER_LENGTHS = { short: 1.2, medium: 2.2, long: 4.0, xlong: 7.5 };
+const LADDER_LENGTHS = { short: 1.2, medium: 2.2, long: 3.3, xlong: 4.6 };
 
 function buildLadder(N, length) {
   const factor = LADDER_LENGTHS[length] || LADDER_LENGTHS.medium;
-  const rows = Math.max(6, Math.min(110, Math.round(N * factor) + 6)); // 지정 길이에 따른 행 수
+  const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 6)); // 지정 길이에 따른 행 수
   const H = [];
   for (let r = 0; r < rows; r++) {
     const row = new Array(N - 1).fill(false);

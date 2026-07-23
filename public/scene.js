@@ -489,7 +489,7 @@ export function reveal(state, meId, onDone) {
     resetGoals(); // 결과 다시 가리기(리플레이 대비)
     // 길이에 맞춰 하강 속도 조정 (너무 오래 걸리지 않게, 약 8~14초)
     const trackLen = zEndG - zStartG;
-    walkSpeed = Math.max(SPEED, trackLen / 12);
+    walkSpeed = Math.max(SPEED, trackLen / 9);
 
     const players = (state.players || []).filter((p) => p.lane != null);
     if (!players.length) { revealAllGoals(); endReveal(); finish(); return; }

@@ -68,6 +68,7 @@
     let revealing = false;     // 연출 중에는 하단 렌더 보류
     let playedReveal = false;  // 이번 게임 연출을 이미 재생했는지
     let latestState = null;
+    let replayMode = false;    // 리플레이 링크(#r=)로 들어온 경우 서버 폴링 안 함
     const myId = () => me && me.playerId;
 
     function showErr(msg) { errEl.textContent = msg || ''; }
@@ -87,6 +88,42 @@
     }
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    // ---------------- 리플레이 URL (저장 없이 링크에 게임 데이터 인코딩) ----------------
+    function b64urlEncode(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+    function b64urlDecode(str) { str = str.replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '='; const bin = atob(str); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+    function packLadder(H, N) { return H.map(row => { let b = 0; for (let c = 0; c < N - 1; c++) if (row[c]) b |= (1 << c); return b; }); }
+    function unpackLadder(arr, N) { return arr.map(b => { const row = []; for (let c = 0; c < N - 1; c++) row.push(!!((b >> c) & 1)); return row; }); }
+
+    async function encodeReplay(s) {
+      const obj = { t: s.title, n: s.laneCount, r: s.results, p: s.players.map(p => [p.name, p.lane]),
+                    h: packLadder(s.ladder.H, s.laneCount), m: s.mapping };
+      const raw = new TextEncoder().encode(JSON.stringify(obj));
+      if (window.CompressionStream) {
+        try {
+          const cs = new CompressionStream('deflate-raw');
+          const w = cs.writable.getWriter(); w.write(raw); w.close();
+          const buf = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+          return 'C' + b64urlEncode(buf);
+        } catch (e) {}
+      }
+      return 'R' + b64urlEncode(raw);
+    }
+    async function decodeReplay(str) {
+      const flag = str[0], data = b64urlDecode(str.slice(1));
+      let json;
+      if (flag === 'C' && window.DecompressionStream) {
+        const ds = new DecompressionStream('deflate-raw');
+        const w = ds.writable.getWriter(); w.write(data); w.close();
+        json = new TextDecoder().decode(new Uint8Array(await new Response(ds.readable).arrayBuffer()));
+      } else {
+        json = new TextDecoder().decode(data);
+      }
+      const o = JSON.parse(json);
+      return { id: 'replay', title: o.t, laneCount: o.n, results: o.r, laneMode: 'pick', resultsHidden: false,
+               status: 'finished', players: o.p.map((pp, i) => ({ id: 'rp' + i, name: pp[0], lane: pp[1] })),
+               ladder: { rows: o.h.length, H: unpackLadder(o.h, o.n) }, mapping: o.m };
     }
 
     // ---------------- 렌더링 ----------------
@@ -173,6 +210,7 @@
       }
       html += `</ul>`;
       html += `<button class="block mt secondary" id="replayBtn">▶️ 연출 다시 보기</button>`;
+      html += `<button class="block mt secondary" id="replayLinkBtn">🔗 리플레이 링크 복사</button>`;
       if (isHost) html += `<button class="block mt" id="resetBtn">🔀 다시 섞기 (같은 멤버)</button>`;
       html += `</div>`;
       return html;
@@ -222,6 +260,18 @@
       const replayBtn = document.getElementById('replayBtn');
       if (replayBtn) replayBtn.onclick = () => {
         if (latestState && latestState.ladder && latestState.mapping) playReveal(latestState);
+      };
+
+      const replayLinkBtn = document.getElementById('replayLinkBtn');
+      if (replayLinkBtn) replayLinkBtn.onclick = async () => {
+        if (!latestState || !latestState.ladder) return;
+        try {
+          const link = location.origin + '/r/replay#r=' + await encodeReplay(latestState);
+          const text = `${latestState.title}\n${link}`;
+          if (navigator.clipboard) { await navigator.clipboard.writeText(text); }
+          else { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+          toast('리플레이 링크 복사됨! (저장 없이 링크만으로 재생)');
+        } catch (e) { showErr('링크 생성 실패'); }
       };
     }
 
@@ -341,6 +391,7 @@
 
     // ---------------- 폴링 ----------------
     async function poll() {
+      if (replayMode) return; // 리플레이 링크로 들어온 경우 서버 폴링 안 함
       try {
         const res = await fetch(`/api/rooms/${roomId}`);
         if (!res.ok) { const d = await res.json(); showErr(d.error); return; }
@@ -372,8 +423,23 @@
 
     window.ladderResync = () => { if (latestState) window.L3D?.sync(latestState, myId()); };
 
-    poll();
-    setInterval(poll, 1500);
+    // 리플레이 링크(#r=…)로 들어온 경우: 서버 없이 URL 데이터만으로 재생
+    const replayHash = location.hash.startsWith('#r=') ? location.hash.slice(3) : null;
+    if (replayHash) {
+      replayMode = true;
+      decodeReplay(replayHash).then((s) => {
+        latestState = s;
+        document.getElementById('title').textContent = s.title;
+        document.getElementById('subtitle').textContent = '리플레이 · 링크에 담긴 결과를 다시 봅니다';
+        window.L3D && window.L3D.sync(s, null);   // 3D 캐릭터 스폰
+        document.body.classList.add('revealing'); // HUD 숨김(스포일러 방지)
+        playedReveal = true;
+        setTimeout(() => playReveal(s), 1600);     // 캐릭터 로딩 여유 후 재생
+      }).catch(() => showErr('리플레이 데이터를 읽을 수 없어요. (링크가 손상되었을 수 있어요)'));
+    } else {
+      poll();
+      setInterval(poll, 1500);
+    }
   </script>
 
   <!-- 3D 무대 부트스트랩 (실패하면 window.L3D 미설정 → 자동 2D 폴백) -->
