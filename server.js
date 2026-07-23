@@ -128,7 +128,7 @@ function firstFreeLane(room) {
  *   덕분에 경로 추적이 항상 전단사(bijection)가 된다.
  */
 // 길이 프리셋: 값이 클수록 사다리가 길다.
-const LADDER_LENGTHS = { short: 1.2, medium: 2.0, long: 2.7, xlong: 3.4 };
+const LADDER_LENGTHS = { short: 0.8, medium: 1.2, long: 1.5, xlong: 1.8 };
 
 // 결정적 PRNG — 시드만으로 동일한 사다리를 재현한다.
 // ⚠️ 클라이언트(room.html)의 mulberry32/buildLadderFromSeed 와 반드시 동일해야 함
@@ -147,7 +147,7 @@ function mulberry32(seed) {
 function buildLadder(N, length, rng) {
   rng = rng || Math.random;
   const factor = LADDER_LENGTHS[length] || LADDER_LENGTHS.medium;
-  const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 6));
+  const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 3));
   const H = [];
   for (let r = 0; r < rows; r++) {
     const row = new Array(N - 1).fill(false);

@@ -95,7 +95,7 @@
     function b64urlDecode(str) { str = str.replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '='; const bin = atob(str); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
     // ⚠️ 아래 mulberry32/buildLadderFromSeed 는 server.js 와 반드시 동일해야 함
     //    (리플레이 링크에는 '시드'만 담고, 사다리는 이 알고리즘으로 재생성한다)
-    const LADDER_LENGTHS = { short: 1.2, medium: 2.0, long: 2.7, xlong: 3.4 };
+    const LADDER_LENGTHS = { short: 0.8, medium: 1.2, long: 1.5, xlong: 1.8 };
     function mulberry32(seed) {
       let a = seed >>> 0;
       return function () {
@@ -108,7 +108,7 @@
     function buildLadderFromSeed(N, length, seed) {
       const rng = mulberry32(seed);
       const factor = LADDER_LENGTHS[length] || LADDER_LENGTHS.medium;
-      const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 6));
+      const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 3));
       const H = [];
       for (let r = 0; r < rows; r++) {
         const row = new Array(N - 1).fill(false);
