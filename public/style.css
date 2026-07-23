@@ -187,7 +187,8 @@ body.has3d.revealing .wrap { opacity: 0; pointer-events: none; transition: opaci
 }
 .r3d-drum { top: 7%; font-size: 1.4rem; font-weight: 800; color: var(--accent); }
 .r3d-verdict {
-  top: 5%; font-size: 1.9rem; font-weight: 900; color: #fff;
+  top: 5%; font-size: 1.8rem; font-weight: 900; color: #fff;
+  max-width: 92vw; word-break: keep-all; line-height: 1.25;
   animation: pop .45s cubic-bezier(.2,1.6,.4,1);
 }
 @keyframes pop { 0% { transform: translateX(-50%) scale(0.2); } 70% { transform: translateX(-50%) scale(1.25); } 100% { transform: translateX(-50%) scale(1); } }

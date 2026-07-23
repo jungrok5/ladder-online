@@ -518,12 +518,21 @@ export function reveal(state, meId, onDone) {
     });
 
     function onAllDone() {
-      revealAllGoals(); // 빈 칸 등 남은 구름도 정리
+      revealAllGoals();
       drum.remove();
-      banner('r3d-verdict', '결과 확정! 🎉');
+      // 1인칭에선 골 라벨이 카메라에 붙어 잘 안 보이므로, 최종 배너에 내 결과를 같이 표시
+      let msg = '결과 확정! 🎉';
+      try {
+        const meP = (state.players || []).find((p) => p.id === myPlayerId && p.lane != null);
+        if (meP && state.mapping && state.results) {
+          const r = state.results[state.mapping[meP.lane]];
+          if (r != null) msg = `🎉 내 결과: ${r}`;
+        }
+      } catch (e) {}
+      banner('r3d-verdict', msg);
       const flash = document.createElement('div'); flash.className = 'flashbang';
       document.body.appendChild(flash); setTimeout(() => flash.remove(), 500);
-      setTimeout(() => { endReveal(); finish(); }, 2200);
+      setTimeout(() => { endReveal(); finish(); }, 2600);
     }
   } catch (e) {
     console.warn('[L3D] reveal 오류 → 종료', e);
