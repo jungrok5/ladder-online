@@ -235,10 +235,10 @@ function advanceWalk(c, dt) {
       move = 0;
     }
   }
-  // 골 근처에 오면 구름이 걷히고 결과 라벨이 드러난다
+  // 골 근처에 오면 도착 칸 결과가 강조(팝)된다
   if (!c.revealed && c.endLane != null && p.z > zEndG - CLOUD_CLEAR_AHEAD) {
     c.revealed = true;
-    revealGoal(c.endLane);
+    goalPop(c.endLane);
   }
   if (c.wpIdx >= c.path.length) {
     c.walking = false;
@@ -270,21 +270,58 @@ function play(c, name, opts) {
   c.current = action;
 }
 
-// ---- 골 결과 라벨: 마지막 근처에서 드러남(구름 없이 부드럽게 페이드인) ----
-function revealGoal(lane) {
-  const lab = resultLabels[lane];
-  if (lab) lab.el.classList.remove('clouded');
+// ---- 결과 텍스트를 3D 월드 스프라이트로 (CSS2D 대신 → 골에 고정·거리에 따라 축소·겹침 방지) ----
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function makeTextSprite(text) {
+  text = text == null ? '?' : String(text);
+  const dpr = 2, fs = 46, padX = 26, padY = 16;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const fontStr = `700 ${fs}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`;
+  ctx.font = fontStr;
+  const tw = Math.ceil(ctx.measureText(text).width);
+  const W = tw + padX * 2, H = fs + padY * 2;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.font = fontStr; ctx.textBaseline = 'middle';
+  roundRect(ctx, 2, 2, W - 4, H - 4, 18);
+  ctx.fillStyle = 'rgba(27,33,80,0.96)'; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillText(text, padX, H / 2 + 1);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+  const sp = new THREE.Sprite(mat);
+  // 월드 크기: 높이 고정, 폭은 칸 간격을 넘지 않게 (겹침 방지)
+  const hWorld = 0.44;
+  let wWorld = hWorld * (W / H), hAdj = hWorld;
+  const maxW = LANE_DX * 0.94;
+  if (wWorld > maxW) { hAdj = hWorld * (maxW / wWorld); wWorld = maxW; }
+  sp.scale.set(wWorld, hAdj, 1);
+  return { sprite: sp, baseScale: sp.scale.clone(), popped: false };
 }
 
+// 도착 칸 결과를 강조(팝) — 마지막 근처/도착 시
+function goalPop(lane) {
+  const g = resultLabels[lane];
+  if (!g || g.popped) return;
+  g.popped = true;
+  g.sprite.scale.set(g.baseScale.x * 1.22, g.baseScale.y * 1.22, 1);
+  g.sprite.material.color.set(0x9affd0);
+}
 function resetGoals() {
-  // 리플레이/재시작 대비: 강조(hit)만 초기화 (결과는 항상 보임)
-  resultLabels.forEach((l) => l.el.classList.remove('hit'));
+  resultLabels.forEach((g) => { g.popped = false; g.sprite.scale.copy(g.baseScale); g.sprite.material.color.set(0xffffff); });
   for (const c of chars.values()) c.revealed = false;
 }
-
-function revealAllGoals() {
-  resultLabels.forEach((l) => l.el.classList.remove('clouded'));
-}
+function revealAllGoals() { /* 결과는 항상 보임 — 별도 처리 없음 */ }
 
 // ---- 사다리 트랙 ----
 function zOfRow(r, rows) {
@@ -302,8 +339,7 @@ function buildTrack(state) {
   zEndG = trackLen / 2 + 0.9;
 
   if (trackGroup) { scene.remove(trackGroup); disposeGroup(trackGroup); }
-  resultLabels.forEach((l) => l.obj && l.obj.parent && l.obj.parent.remove(l.obj));
-  resultLabels = [];
+  resultLabels = []; // 스프라이트는 trackGroup 자식이라 위 disposeGroup 로 함께 정리됨
   cloudPuffs = [];
   trackGroup = new THREE.Group();
 
@@ -335,15 +371,12 @@ function buildTrack(state) {
     tile.receiveShadow = true;
     trackGroup.add(tile);
 
-    // 결과 라벨: 항상 처음부터 보임(도착 시 강조만).
-    // 칸이 많을 때 가로로 겹치지 않도록 3단 높이로 엇갈리게 배치.
+    // 결과 텍스트: 3D 월드 스프라이트로 골 위치에 고정 (카메라 움직여도 골에 붙어있고 겹치지 않음).
     const txt = results[c] != null ? results[c] : '?';
-    const yLab = 0.55 + (c % 3) * 0.6;
-    const lab = makeLabel('result', txt, yLab);
-    lab.obj.position.set(xOf(c), yLab, zEndG + 0.15);
-    lab.laneIndex = c;
-    trackGroup.add(lab.obj);
-    resultLabels.push(lab);
+    const g = makeTextSprite(txt);
+    g.sprite.position.set(xOf(c), 0.72, zEndG + 0.15);
+    trackGroup.add(g.sprite);
+    resultLabels.push(g);
   }
 
   // 가로대 (사다리 확정 후에만)
@@ -366,7 +399,7 @@ function buildTrack(state) {
 function disposeGroup(g) {
   g.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
-    if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); }
+    if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); }
   });
 }
 
@@ -508,9 +541,7 @@ export function reveal(state, meId, onDone) {
       c.endLane = end; c.revealed = false;
       c.nick.el.classList.remove('win');
       c.onArrive = () => {
-        revealGoal(end);
-        const lab = resultLabels[end];
-        if (lab) lab.el.classList.add('hit');
+        goalPop(end);
         c.nick.el.classList.add('win');
         c.lockAnim = true;
         play(c, c.actions['emote-yes'] ? 'emote-yes' : 'jump', { once: true });
