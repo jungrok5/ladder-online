@@ -41,10 +41,11 @@ let resultLabels = [];         // 결과 CSS2D 라벨
 let cloudPuffs = [];           // 골 앞을 가리는 구름 (칸별)
 
 let walkSpeed = SPEED;         // 이번 연출의 하강 속도(길이에 맞춰 조정)
-let fpMode = false;            // 1인칭 모드
-let myPlayerId = null;         // 내 캐릭터 id (1인칭 대상)
+let viewMode = 'default';      // 'default'(오버뷰) | 'tps'(캐릭터 뒤) | 'zoom'(캐릭터 근처 줌인)
+let myPlayerId = null;         // 내 캐릭터 id (추적 대상)
+const isFollow = () => viewMode === 'tps' || viewMode === 'zoom';
 
-// 1인칭에서 좌우 드래그로 시야 회전 → 놓으면 정면(골 방향)으로 복귀
+// 추적 뷰에서 좌우 드래그로 시야 회전 → 놓으면 정면(골 방향)으로 복귀
 let fpYaw = 0;                 // 현재 적용된 시야 좌우 각(rad)
 let fpYawTarget = 0;          // 목표 각 (드래그 중=원하는 방향, 놓으면 0)
 let fpDragging = false;
@@ -197,13 +198,13 @@ function fitCamera() {
 // 1인칭 좌우 드래그 → 시야 회전. 드래그를 놓으면 정면(골 방향)으로 부드럽게 복귀.
 function setupFpDrag(el) {
   const down = (e) => {
-    if (!fpMode) return;
+    if (!isFollow()) return;
     fpDragging = true;
     fpDragStartX = (e.touches ? e.touches[0].clientX : e.clientX);
     fpDragStartYaw = fpYawTarget;
   };
   const move = (e) => {
-    if (!fpDragging || !fpMode) return;
+    if (!fpDragging || !isFollow()) return;
     const x = (e.touches ? e.touches[0].clientX : e.clientX);
     // 오른쪽으로 끌면 시야가 오른쪽(+x)을 향함
     let y = fpDragStartYaw - (x - fpDragStartX) * FP_YAW_SENS;
@@ -238,14 +239,19 @@ function loop() {
   const now = performance.now();
   if (tweens.length) tweens = tweens.filter((t) => !t(now));
 
-  const c0 = fpMode ? fpTarget() : null;
+  const c0 = isFollow() ? fpTarget() : null;
   if (c0) {
-    // TPS(3인칭): 캐릭터 뒤·위에서 내려다보며 진행 방향(+z)을 향한다.
-    // 시선은 항상 +z 고정(회전 없음 → 안 어지러움), 위치만 캐릭터를 따라간다.
-    // 캐릭터가 시야를 가리지 않고 골(앞쪽)도 함께 보인다.
+    // 캐릭터를 따라가는 뷰. 위치만 따라가고 시선은 진행 방향(+z) 기준(+드래그 각).
     const p = c0.group.position;
-    _eye.set(p.x, p.y + 2.7, p.z - 3.4);       // 더 뒤·더 위 (뒤 = -z)
-    _lk.set(p.x, p.y + 0.15, p.z + 4.5);        // 앞쪽 골(+z)을 살짝 내려다봄
+    if (viewMode === 'zoom') {
+      // 줌인: 인원이 많아 기본 뷰가 너무 먼 경우용. 캐릭터 근처지만 TPS보다 넓게.
+      _eye.set(p.x, p.y + 6.0, p.z - 9.0);
+      _lk.set(p.x, p.y + 0.3, p.z + 3.0);
+    } else {
+      // TPS: 캐릭터 뒤·위에서 진행 방향을 바라봄. 캐릭터가 시야를 가리지 않고 골도 함께 보임.
+      _eye.set(p.x, p.y + 2.7, p.z - 3.4);       // 더 뒤·더 위 (뒤 = -z)
+      _lk.set(p.x, p.y + 0.15, p.z + 4.5);        // 앞쪽 골(+z)을 살짝 내려다봄
+    }
     camera.position.lerp(_eye, Math.min(1, dt * 6));
     // 좌우 드래그 각을 목표로 부드럽게 이동(드래그 중엔 빠르게, 놓으면 스프링백)
     fpYaw += (fpYawTarget - fpYaw) * Math.min(1, dt * (fpDragging ? 18 : 6));
@@ -573,10 +579,10 @@ export function endReveal() {
   document.querySelectorAll('.flashbang').forEach((e) => e.remove());
 }
 
-// 1인칭 모드 토글
-export function setFirstPerson(on) {
-  fpMode = !!on;
-  if (!fpMode) { fpDragging = false; fpYawTarget = 0; fpYaw = 0; }
+// 시점 전환: 'default'(오버뷰) | 'tps'(캐릭터 뒤) | 'zoom'(캐릭터 근처 줌인)
+export function setViewMode(mode) {
+  viewMode = (mode === 'tps' || mode === 'zoom') ? mode : 'default';
+  if (!isFollow()) { fpDragging = false; fpYawTarget = 0; fpYaw = 0; }
 }
 
 // 사다리 하강 연출. state 에는 ladder/mapping/results 가 모두 들어있어야 한다.

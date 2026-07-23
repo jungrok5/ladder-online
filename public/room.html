@@ -46,7 +46,7 @@
     <p class="sub center mt"><a href="/">새 방 만들기</a> · <a href="/privacy">개인정보처리방침</a></p>
   </div>
   <div class="toast" id="toast"></div>
-  <button id="fpBtn" class="fpbtn" type="button">👁️ 1인칭</button>
+  <button id="fpBtn" class="fpbtn" type="button">🎥 시점: 기본</button>
 
   <script src="/ads.js"></script>
   <script>
@@ -486,20 +486,23 @@
 
   <!-- 3D 무대 부트스트랩 (실패하면 window.L3D 미설정 → 자동 2D 폴백) -->
   <script type="module">
-    import { init, sync, reveal, endReveal, charCount, setFirstPerson } from '/scene.js';
+    import { init, sync, reveal, endReveal, charCount, setViewMode } from '/scene.js';
     try {
       if (init(document.getElementById('stage'))) {
-        window.L3D = { ready: true, sync, reveal, endReveal, charCount, setFirstPerson };
+        window.L3D = { ready: true, sync, reveal, endReveal, charCount, setViewMode };
         document.body.classList.add('has3d');
         window.ladderResync && window.ladderResync();
-        // 1인칭 모드 토글 버튼
+        // 시점 전환 버튼: 기본 → TPS → 줌인 → 순환
         const fpBtn = document.getElementById('fpBtn');
-        let fpOn = false;
+        const MODES = ['default', 'tps', 'zoom'];
+        const LABELS = { default: '🎥 시점: 기본', tps: '🎥 시점: TPS', zoom: '🎥 시점: 줌인' };
+        let vi = 0;
         if (fpBtn) fpBtn.onclick = () => {
-          fpOn = !fpOn;
-          setFirstPerson(fpOn);
-          fpBtn.classList.toggle('on', fpOn);
-          fpBtn.textContent = fpOn ? '👁️ 1인칭 ON' : '👁️ 1인칭';
+          vi = (vi + 1) % MODES.length;
+          const m = MODES[vi];
+          setViewMode(m);
+          fpBtn.classList.toggle('on', m !== 'default');
+          fpBtn.textContent = LABELS[m];
         };
       }
     } catch (e) { console.warn('3D 비활성화 → 2D 폴백', e); }
