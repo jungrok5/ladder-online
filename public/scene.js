@@ -159,6 +159,7 @@ function fitCamera() {
   const viewDir = new THREE.Vector3(0, 0.82, 0.58).normalize();
 
   const probe = camera.clone();
+  probe.far = 8000; // 인원이 많아 멀리 물러날 때 코너가 far-plane 밖으로 잘려 항상 실패하지 않도록
   const fits = (dist) => {
     probe.position.copy(look).addScaledVector(viewDir, dist);
     probe.up.copy(UP);
@@ -171,11 +172,26 @@ function fitCamera() {
     }
     return true;
   };
-  let lo = 5, hi = 160;
-  for (let i = 0; i < 28; i++) { const mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
+  let lo = 5, hi = 1200; // 100칸(폭 ≈170)도 담을 수 있게 상한을 넉넉히
+  for (let i = 0; i < 32; i++) { const mid = (lo + hi) / 2; if (fits(mid)) hi = mid; else lo = mid; }
   const dist = hi * 1.03;
   camPos.copy(look).addScaledVector(viewDir, dist);
   camLook.copy(look);
+
+  // 인원이 많아 카메라가 멀어지면 기본 안개(130)·far(240)에 사다리가 통째로 가려짐
+  // → 실제 필요한 거리에 맞춰 원경(안개·클리핑)을 넓힌다. 작은 사다리는 기본값 유지.
+  let maxD = 0;
+  for (const c of corners) maxD = Math.max(maxD, camPos.distanceTo(c));
+  camera.far = Math.max(240, maxD * 1.15);
+  camera.updateProjectionMatrix();
+  if (scene && scene.fog) {
+    if (maxD * 1.2 > 130) {
+      scene.fog.far = maxD * 1.2;
+      scene.fog.near = Math.max(34, scene.fog.far * 0.45);
+    } else {
+      scene.fog.near = 34; scene.fog.far = 130; // 기본 복원
+    }
+  }
 }
 
 // 1인칭 좌우 드래그 → 시야 회전. 드래그를 놓으면 정면(골 방향)으로 부드럽게 복귀.
