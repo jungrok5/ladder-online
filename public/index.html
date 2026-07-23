@@ -96,7 +96,7 @@
       for (let i = 0; i < laneCount; i++) {
         const v = (saved[i] || '').replace(/"/g, '&quot;');
         html += `<div class="resrow"><span class="ridx">${i + 1}</span>
-          <input type="text" data-i="${i}" maxlength="24" placeholder="결과 ${i + 1} (예: 꽝 / 당첨)" value="${v}" /></div>`;
+          <input type="text" data-i="${i}" maxlength="18" placeholder="결과 ${i + 1} (예: 꽝 / 당첨)" value="${v}" /></div>`;
       }
       resultsEl.innerHTML = html;
     }

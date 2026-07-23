@@ -25,8 +25,8 @@ const MAX_ROOMS = 5000;     // 메모리 보호: 동시 보관 방 수 상한
 const MIN_LANES = 2;
 const MAX_LANES = 12;       // 가독성 상한 (모바일에서도 잘 보이는 범위)
 const HARD_CAP_LANES = 50;  // 어떤 경우에도 넘지 않는 안전 한계
-const MAX_RESULT_LEN = 24;  // 각 결과 텍스트 길이 제한
-const MAX_NAME_LEN = 20;
+const MAX_RESULT_LEN = 18;  // 각 결과 텍스트 길이 제한 (리플레이 URL 예측 가능하게 축소)
+const MAX_NAME_LEN = 14;    // 닉네임 길이 제한 (리플레이 URL 예측 가능하게 축소)
 
 /** @type {Record<string, Room>} 메모리 저장소 */
 const rooms = Object.create(null);
@@ -127,23 +127,41 @@ function firstFreeLane(room) {
  * - 인접 가로대 금지(같은 행에서 한 세로줄이 좌/우 동시에 연결되지 않도록).
  *   덕분에 경로 추적이 항상 전단사(bijection)가 된다.
  */
-// 길이 프리셋: 값이 클수록 사다리가 길고(가로대 많고) 복잡·재밌어진다.
-const LADDER_LENGTHS = { short: 1.2, medium: 2.2, long: 3.3, xlong: 4.6 };
+// 길이 프리셋: 값이 클수록 사다리가 길다.
+const LADDER_LENGTHS = { short: 1.2, medium: 2.0, long: 2.7, xlong: 3.4 };
 
-function buildLadder(N, length) {
+// 결정적 PRNG — 시드만으로 동일한 사다리를 재현한다.
+// ⚠️ 클라이언트(room.html)의 mulberry32/buildLadderFromSeed 와 반드시 동일해야 함
+//    (리플레이 링크는 시드만 담고, 사다리는 양쪽에서 이 알고리즘으로 재생성).
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// rng() 는 [0,1) 난수 함수. 기본 Math.random, 시드 재현 시 mulberry32(seed).
+function buildLadder(N, length, rng) {
+  rng = rng || Math.random;
   const factor = LADDER_LENGTHS[length] || LADDER_LENGTHS.medium;
-  const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 6)); // 지정 길이에 따른 행 수
+  const rows = Math.max(6, Math.min(72, Math.round(N * factor) + 6));
   const H = [];
   for (let r = 0; r < rows; r++) {
     const row = new Array(N - 1).fill(false);
     for (let c = 0; c < N - 1; c++) {
-      // 바로 왼쪽 칸에 가로대가 있으면 건너뛴다(인접 금지)
-      if (c > 0 && row[c - 1]) continue;
-      if (Math.random() < 0.62) row[c] = true; // 교차(칸)를 좀더 촘촘하게
+      if (c > 0 && row[c - 1]) continue;   // 인접 금지
+      if (rng() < 0.62) row[c] = true;      // 교차(칸) 밀도
     }
     H.push(row);
   }
   return { rows, H };
+}
+
+function buildLadderFromSeed(N, length, seed) {
+  return buildLadder(N, length, mulberry32(seed));
 }
 
 /** 출발 칸 s 에서 사다리를 타고 내려간 도착 칸을 반환한다. */
@@ -164,15 +182,16 @@ function computeMapping(ladder, N) {
   return mapping;
 }
 
-// 아무도 자리가 안 바뀌는(전부 제자리) 심심한 사다리를 피한다 — 최소 한 명은 이동하게 재생성.
-function buildLadderNonTrivial(N, length) {
-  let ladder = buildLadder(N, length);
-  for (let t = 0; t < 16 && N >= 2; t++) {
-    const m = computeMapping(ladder, N);
-    if (m.some((v, i) => v !== i)) break; // 뒤섞임 있음 → OK
-    ladder = buildLadder(N, length);       // 항등(전부 제자리)이면 다시 생성
+// 아무도 자리가 안 바뀌는(전부 제자리) 심심한 사다리를 피하는 시드를 고른다.
+// 반환한 시드로 buildLadderFromSeed 하면 최소 한 명은 이동하는 사다리가 나온다(재현 가능).
+function pickLadderSeed(N, length) {
+  let seed = crypto.randomInt(0x7fffffff);
+  for (let t = 0; t < 24 && N >= 2; t++) {
+    const m = computeMapping(buildLadderFromSeed(N, length, seed), N);
+    if (m.some((v, i) => v !== i)) break;  // 뒤섞임 있음 → OK
+    seed = (seed + 1) >>> 0;                // 항등이면 다음 시드
   }
-  return ladder;
+  return seed;
 }
 
 /** 클라이언트에 보낼 상태. 시작 전에는 ladder/mapping 을 노출하지 않는다. */
@@ -190,6 +209,8 @@ function publicState(room) {
     players: room.players.map((p) => ({ id: p.id, name: p.name, lane: p.lane })),
     ladder: started ? room.ladder : null,   // 시작 전 절대 노출 금지
     mapping: started ? room.mapping : null,  // 시작 전 절대 노출 금지
+    ladderSeed: started ? room.ladderSeed : null, // 리플레이 링크용 시드(시작 후에만)
+    ladderLength: room.ladderLength,
   };
 }
 
@@ -392,7 +413,8 @@ const server = http.createServer(async (req, res) => {
             for (const p of room.players) if (p.lane == null) p.lane = free[k++];
           }
 
-          room.ladder = buildLadderNonTrivial(room.laneCount, room.ladderLength);
+          room.ladderSeed = pickLadderSeed(room.laneCount, room.ladderLength);
+          room.ladder = buildLadderFromSeed(room.laneCount, room.ladderLength, room.ladderSeed);
           room.mapping = computeMapping(room.ladder, room.laneCount);
           room.status = 'revealing';
           return sendJson(res, 200, publicState(room));
@@ -463,5 +485,5 @@ if (require.main === module) {
     console.log(`🪜  사다리타기 서버 실행 중: http://localhost:${PORT}`);
   });
 } else {
-  module.exports = { server, buildLadder, buildLadderNonTrivial, tracePath, computeMapping, sanitizeLaneCount, sanitizeResults, MAX_LANES, MIN_LANES };
+  module.exports = { server, buildLadder, buildLadderFromSeed, mulberry32, pickLadderSeed, tracePath, computeMapping, sanitizeLaneCount, sanitizeResults, LADDER_LENGTHS, MAX_LANES, MIN_LANES };
 }

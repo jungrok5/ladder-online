@@ -44,23 +44,29 @@ ok('sanitizeLaneCount 범위/형변환');
 const rs = sanitizeResults(['a', '', 'x'.repeat(40)], 4);
 assert.strictEqual(rs.length, 4, '길이를 칸 수에 맞춤');
 assert.strictEqual(rs[1], '결과 2', '빈 칸 기본값');
-assert.strictEqual(rs[2].length, 24, '결과 길이 제한 24');
+assert.strictEqual(rs[2].length, 18, '결과 길이 제한 18');
 ok('sanitizeResults 길이/기본값/슬라이스');
 
-section('사다리 길이 / 비항등 단위 테스트');
+section('사다리 길이 / 시드 재현 / 비항등 단위 테스트');
 {
-  const { buildLadderNonTrivial } = mod;
+  const { buildLadderFromSeed, pickLadderSeed } = mod;
   // 길이 지정: 아주 길게 > 짧게 (행 수)
   assert.ok(buildLadder(6, 'xlong').rows > buildLadder(6, 'short').rows, '아주 길게 > 짧게');
   // 알 수 없는 길이/미지정 → 기본(medium)로 동작(에러 없음)
   assert.ok(buildLadder(4).rows >= 6 && buildLadder(4, 'haxx').rows >= 6, '미지정/이상값 기본 처리');
-  // 비항등 보장: N=2 에서 항상 자리 뒤바뀜(0↔1)
+  // 같은 시드 → 같은 사다리(재현 가능)
+  for (const [N, L, seed] of [[6, 'xlong', 12345], [8, 'medium', 999], [2, 'short', 7]]) {
+    const a = buildLadderFromSeed(N, L, seed), b = buildLadderFromSeed(N, L, seed);
+    assert.deepStrictEqual(a.H, b.H, `시드 재현 N=${N}`);
+  }
+  // pickLadderSeed 가 고른 시드는 비항등(자리 바뀜) 보장
   for (let i = 0; i < 30; i++) {
-    const m = computeMapping(buildLadderNonTrivial(2, 'medium'), 2);
-    assert.ok(m[0] !== 0 || m[1] !== 1, 'N=2 비항등 보장(자리 바뀜)');
+    const seed = pickLadderSeed(2, 'medium');
+    const m = computeMapping(buildLadderFromSeed(2, 'medium', seed), 2);
+    assert.ok(m[0] !== 0 || m[1] !== 1, 'N=2 비항등 보장');
   }
 }
-ok('사다리 길이 지정 + 비항등(심심한 사다리 방지)');
+ok('사다리 길이 + 시드 재현 + 비항등');
 
 // ---------------------------------------------------------------------------
 // 2) 통합 테스트 (실제 HTTP)
