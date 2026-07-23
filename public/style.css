@@ -245,3 +245,16 @@ a { color: var(--accent); }
 .lenbtns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .lenbtn { background: #0d1130; border: 2px solid rgba(255,255,255,.1); font-size: .9rem; padding: 11px 0; color: var(--text); }
 .lenbtn.selected { border-color: var(--accent2); background: #2a1330; }
+
+/* 골 결과: 구름에 가려 숨김 → 마지막 근처에서 드러남 */
+.result.clouded { opacity: 0; }
+
+/* 1인칭 모드 토글 버튼 */
+.fpbtn {
+  display: none; position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 50;
+  padding: 9px 14px; font-size: .85rem; font-weight: 700; border-radius: 999px;
+  background: rgba(20,25,58,.82); color: #fff; border: 1.5px solid rgba(255,255,255,.35);
+  backdrop-filter: blur(4px); box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+body.has3d .fpbtn { display: block; }
+.fpbtn.on { background: var(--accent); color: #0d1130; border-color: var(--accent); }

@@ -46,6 +46,7 @@
     <p class="sub center mt"><a href="/">새 방 만들기</a> · <a href="/privacy">개인정보처리방침</a></p>
   </div>
   <div class="toast" id="toast"></div>
+  <button id="fpBtn" class="fpbtn" type="button">👁️ 1인칭</button>
 
   <script src="/ads.js"></script>
   <script>
@@ -241,7 +242,7 @@
         if (latestState) { latestState.status = 'finished'; render(latestState); }
         poll();
       };
-      const failsafe = setTimeout(cleanup, 20000);
+      const failsafe = setTimeout(cleanup, 40000);
 
       if (window.L3D && window.L3D.ready) {
         try { window.L3D.reveal(s, myId(), cleanup); return; }
@@ -377,12 +378,21 @@
 
   <!-- 3D 무대 부트스트랩 (실패하면 window.L3D 미설정 → 자동 2D 폴백) -->
   <script type="module">
-    import { init, sync, reveal, endReveal, charCount } from '/scene.js';
+    import { init, sync, reveal, endReveal, charCount, setFirstPerson } from '/scene.js';
     try {
       if (init(document.getElementById('stage'))) {
-        window.L3D = { ready: true, sync, reveal, endReveal, charCount };
+        window.L3D = { ready: true, sync, reveal, endReveal, charCount, setFirstPerson };
         document.body.classList.add('has3d');
         window.ladderResync && window.ladderResync();
+        // 1인칭 모드 토글 버튼
+        const fpBtn = document.getElementById('fpBtn');
+        let fpOn = false;
+        if (fpBtn) fpBtn.onclick = () => {
+          fpOn = !fpOn;
+          setFirstPerson(fpOn);
+          fpBtn.classList.toggle('on', fpOn);
+          fpBtn.textContent = fpOn ? '👁️ 1인칭 ON' : '👁️ 1인칭';
+        };
       }
     } catch (e) { console.warn('3D 비활성화 → 2D 폴백', e); }
   </script>
