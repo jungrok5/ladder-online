@@ -299,6 +299,6 @@ body.cinematic .cine { display: block; }
   font-size: .82rem; font-weight: 800; letter-spacing: .01em;
   text-shadow: 0 2px 8px #000; padding: 0 12px;
 }
-/* 시네마틱(결과 화면)일 땐 결과 시트를 접어 화면을 깨끗하게 */
-body.has3d.cinematic.finished3d .wrap { transform: translateY(105%); }
+/* 시네마틱(결과 화면)일 땐 결과 시트를 숨겨 화면을 깨끗하게 (슬라이드 깜빡임 없이) */
+body.has3d.cinematic.finished3d .wrap { display: none; }
 body.has3d.cinematic .sheettoggle { display: none; }
