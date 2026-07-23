@@ -269,48 +269,20 @@ function play(c, name, opts) {
   c.current = action;
 }
 
-// ---- 구름 (골을 가림) ----
-function makeCloud() {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0xe6ecff, roughness: 1, metalness: 0, transparent: true, opacity: 1, emissive: 0x30407a, emissiveIntensity: 0.25 });
-  const geo = new THREE.IcosahedronGeometry(0.46, 0);
-  const offs = [[-0.42, 0, 0], [0.42, 0.06, 0.08], [0, 0.24, -0.06], [0.08, -0.08, 0.26], [-0.15, 0.12, 0.2]];
-  for (const [x, y, z] of offs) {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.scale.setScalar(0.7 + Math.random() * 0.6);
-    g.add(m);
-  }
-  g.userData.mat = mat;
-  return g;
-}
-
+// ---- 골 결과 라벨: 마지막 근처에서 드러남(구름 없이 부드럽게 페이드인) ----
 function revealGoal(lane) {
   const lab = resultLabels[lane];
-  if (lab && lab.el.classList.contains('clouded')) lab.el.classList.remove('clouded');
-  const cloud = cloudPuffs[lane];
-  if (cloud && cloud.visible) {
-    const mat = cloud.userData.mat;
-    const t0 = performance.now();
-    tweens.push((now) => {
-      const t = Math.min(1, (now - t0) / 550);
-      mat.opacity = 1 - t;
-      cloud.position.y = 0.95 + t * 0.8;
-      if (t >= 1) { cloud.visible = false; return true; }
-      return false;
-    });
-  }
+  if (lab) lab.el.classList.remove('clouded');
 }
 
 function resetGoals() {
-  // 리플레이/재시작 대비: 결과를 다시 구름으로 가리고 라벨 숨김
+  // 리플레이/재시작 대비: 결과를 다시 숨김
   resultLabels.forEach((l) => { l.el.classList.add('clouded'); l.el.classList.remove('hit'); });
-  cloudPuffs.forEach((cl) => { if (cl) { cl.visible = true; cl.userData.mat.opacity = 1; cl.position.y = 0.95; } });
   for (const c of chars.values()) c.revealed = false;
 }
 
 function revealAllGoals() {
-  resultLabels.forEach((l, i) => { l.el.classList.remove('clouded'); const cl = cloudPuffs[i]; if (cl) cl.visible = false; });
+  resultLabels.forEach((l) => l.el.classList.remove('clouded'));
 }
 
 // ---- 사다리 트랙 ----
@@ -370,16 +342,6 @@ function buildTrack(state) {
     lab.laneIndex = c;
     trackGroup.add(lab.obj);
     resultLabels.push(lab);
-
-    // 골을 가리는 구름 (사다리 확정 후에만 — 로비에선 굳이 안 만듦)
-    if (started && ladder) {
-      const cloud = makeCloud();
-      cloud.position.set(xOf(c), 0.95, zEndG + 0.05);
-      trackGroup.add(cloud);
-      cloudPuffs.push(cloud);
-    } else {
-      cloudPuffs.push(null);
-    }
   }
 
   // 가로대 (사다리 확정 후에만)

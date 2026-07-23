@@ -139,7 +139,7 @@ function buildLadder(N, length) {
     for (let c = 0; c < N - 1; c++) {
       // 바로 왼쪽 칸에 가로대가 있으면 건너뛴다(인접 금지)
       if (c > 0 && row[c - 1]) continue;
-      if (Math.random() < 0.45) row[c] = true;
+      if (Math.random() < 0.62) row[c] = true; // 교차(칸)를 좀더 촘촘하게
     }
     H.push(row);
   }

@@ -176,7 +176,7 @@ body.has3d.revealing .wrap { opacity: 0; pointer-events: none; transition: opaci
   font: 800 14px/1.2 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   color: #fff; background: #1b2150; border: 1.5px solid rgba(255,255,255,.4);
   padding: 4px 11px; border-radius: 10px;
-  transition: transform .2s;
+  transition: transform .2s, opacity .5s;
 }
 .result.hit { background: #1f9e74; color: #fff; transform: scale(1.18); border-color: #c9ffe9; }
 
