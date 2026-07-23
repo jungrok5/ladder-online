@@ -43,8 +43,9 @@ let cloudPuffs = [];           // 골 앞을 가리는 구름 (칸별)
 let walkSpeed = SPEED;         // 이번 연출의 하강 속도(길이에 맞춰 조정)
 let viewMode = 'default';      // 'default'(오버뷰) | 'zoom'(오버뷰 줌인) | 'tps'(캐릭터 뒤)
 let myPlayerId = null;         // 내 캐릭터 id (추적 대상)
-const isFollow = () => viewMode === 'tps'; // 캐릭터 추적(+드래그 회전)은 TPS만
-const ZOOM_FACTOR = 0.5;       // 줌인: 기본 오버뷰 거리의 이 비율까지 당김(각도 동일)
+const isFollow = () => viewMode === 'tps'; // 드래그 회전은 TPS만
+const ZOOM_VIEWDIR = new THREE.Vector3(0, 0.82, 0.58).normalize(); // 기본 오버뷰와 동일 각도
+const ZOOM_DIST = 30;          // 줌인 시 캐릭터까지 거리(주변 칸이 함께 보이는 정도)
 
 // 추적 뷰에서 좌우 드래그로 시야 회전 → 놓으면 정면(골 방향)으로 복귀
 let fpYaw = 0;                 // 현재 적용된 시야 좌우 각(rad)
@@ -240,6 +241,7 @@ function loop() {
   const now = performance.now();
   if (tweens.length) tweens = tweens.filter((t) => !t(now));
 
+  let zc = null;
   const c0 = isFollow() ? fpTarget() : null;
   if (c0) {
     // TPS: 캐릭터 뒤·위에서 진행 방향(+z)을 바라봄. 캐릭터가 시야를 가리지 않고 골도 함께 보임.
@@ -259,14 +261,19 @@ function loop() {
     curLook.lerp(_lk, Math.min(1, dt * 6));
     camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
+  } else if (viewMode === 'zoom' && (zc = fpTarget())) {
+    // 줌인: 기본 오버뷰와 같은 각도로, 캐릭터를 화면 중앙에 두고 따라간다.
+    // (인원이 많아도 내 캐릭터 주변 진행 상황이 보이게)
+    const p = zc.group.position;
+    _lk.set(p.x, 0.3, p.z);
+    _eye.copy(_lk).addScaledVector(ZOOM_VIEWDIR, ZOOM_DIST);
+    camera.position.lerp(_eye, Math.min(1, dt * 4));
+    curLook.lerp(_lk, Math.min(1, dt * 4));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(curLook);
   } else {
-    // 기본 오버뷰, 또는 그 오버뷰를 각도 그대로 당긴 줌인.
-    if (viewMode === 'zoom') {
-      _eye.subVectors(camPos, camLook).multiplyScalar(ZOOM_FACTOR).add(camLook);
-      camera.position.lerp(_eye, Math.min(1, dt * 2.5));
-    } else {
-      camera.position.lerp(camPos, Math.min(1, dt * 2.5));
-    }
+    // 기본 오버뷰(사다리 전체).
+    camera.position.lerp(camPos, Math.min(1, dt * 2.5));
     curLook.lerp(camLook, Math.min(1, dt * 2.5));
     camera.up.set(0, 1, 0);
     camera.lookAt(curLook);
@@ -378,6 +385,53 @@ function makeTextSprite(text) {
   if (wWorld > maxW) { hAdj = hWorld * (maxW / wWorld); wWorld = maxW; }
   sp.scale.set(wWorld, hAdj, 1);
   return { sprite: sp, baseScale: sp.scale.clone(), popped: false };
+}
+
+// ---- 캐릭터 머리 위 닉네임을 3D 스프라이트로 (CSS2D 대신 → 겹침 없이 각자 머리 위에 고정) ----
+function drawNameCanvas(text, kind) {
+  text = text == null ? '' : String(text);
+  const dpr = 2, fs = 34, padX = 18, padY = 10;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const fontStr = `700 ${fs}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`;
+  ctx.font = fontStr;
+  const tw = Math.ceil(ctx.measureText(text).width);
+  const W = tw + padX * 2, H = fs + padY * 2;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.font = fontStr; ctx.textBaseline = 'middle';
+  const bg = kind === 'me' ? 'rgba(108,123,255,0.96)'
+           : kind === 'win' ? 'rgba(31,158,116,0.96)'
+           : 'rgba(20,25,58,0.92)';
+  const fg = kind === 'me' ? '#0d1130' : '#fff';
+  roundRect(ctx, 2, 2, W - 4, H - 4, H / 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
+  ctx.fillStyle = fg; ctx.fillText(text, padX, H / 2 + 1);
+  return { cv, W, H };
+}
+const NAME_H_WORLD = 0.34;
+function makeNameSprite(text, kind) {
+  const { cv, W, H } = drawNameCanvas(text, kind);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(NAME_H_WORLD * (W / H), NAME_H_WORLD, 1);
+  sp.renderOrder = 10;
+  return { sprite: sp, text, kind };
+}
+function setNick(c, text, kind) {
+  const nk = c.nick;
+  if (!nk || (nk.text === text && nk.kind === kind)) return;
+  const { cv, W, H } = drawNameCanvas(text, kind);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  if (nk.sprite.material.map) nk.sprite.material.map.dispose();
+  nk.sprite.material.map = tex;
+  nk.sprite.material.needsUpdate = true;
+  nk.sprite.scale.set(NAME_H_WORLD * (W / H), NAME_H_WORLD, 1);
+  nk.text = text; nk.kind = kind;
 }
 
 // 도착 칸 결과를 강조(팝) — 마지막 근처/도착 시
@@ -492,6 +546,8 @@ function pathFor(state, s) {
   return { wp, end: pos };
 }
 
+const spawnJobs = new Map(); // playerId -> Promise (진행 중인 스폰; 중복 방지 + reveal 대기용)
+
 async function spawn(player, pos) {
   const idx = hashIdx(player.id);
   const m = await loadModel(idx);
@@ -507,8 +563,10 @@ async function spawn(player, pos) {
   const actions = {};
   for (const clip of m.animations) actions[clip.name] = mixer.clipAction(clip);
 
-  const nick = makeLabel('nick', player.name, TARGET_H + 0.35);
-  group.add(nick.obj);
+  // 머리 위 닉네임: 3D 스프라이트(월드 고정 → 겹침 없이 각자 머리 위)
+  const nick = makeNameSprite(player.name, 'normal');
+  nick.sprite.position.set(0, TARGET_H + 0.4, 0);
+  group.add(nick.sprite);
 
   const c = { group, model, mixer, actions, current: null, nick,
               target: pos.clone(), lockAnim: false, walking: false, path: null, wpIdx: 0, onArrive: null,
@@ -516,6 +574,18 @@ async function spawn(player, pos) {
   chars.set(player.id, c);
   scene.add(group);
   play(c, 'idle');
+}
+
+// 캐릭터가 준비될 때까지의 Promise 를 반환 (이미 있으면 즉시). 중복 스폰 방지.
+function ensureChar(player, pos) {
+  if (chars.has(player.id)) return Promise.resolve(chars.get(player.id));
+  if (spawnJobs.has(player.id)) return spawnJobs.get(player.id);
+  const job = spawn(player, pos)
+    .then(() => chars.get(player.id) || null)
+    .catch((e) => { console.warn('[L3D] spawn 실패', e); return null; })
+    .finally(() => spawnJobs.delete(player.id));
+  spawnJobs.set(player.id, job);
+  return job;
 }
 
 function startPos(lane) {
@@ -542,10 +612,9 @@ export function sync(state, meId) {
       seen.add(p.id);
       const c = chars.get(p.id);
       const homePos = (state.status === 'finished') ? endPos(p.lane, state) : startPos(p.lane);
-      if (!c) { spawn(p, homePos); return; }
-      c.nick.el.textContent = p.name;
-      c.nick.el.classList.toggle('me', p.id === meId);
-      if (revealMode || c.walking) return;
+      if (!c) { ensureChar(p, homePos); return; }
+      const isMe = p.id === meId;
+      if (revealMode || c.walking) { setNick(c, p.name, isMe ? 'me' : (c.nick.kind === 'win' ? 'win' : 'normal')); return; }
       c.target = homePos;
       c.lockAnim = false;
       if (state.status === 'finished') {
@@ -553,9 +622,9 @@ export function sync(state, meId) {
         c.group.rotation.y = 0;
         c.lockAnim = true;
         play(c, c.actions['emote-yes'] ? 'emote-yes' : 'idle', { once: !!c.actions['emote-yes'] });
-        c.nick.el.classList.add('win');
+        setNick(c, p.name, 'win');
       } else {
-        c.nick.el.classList.remove('win');
+        setNick(c, p.name, isMe ? 'me' : 'normal');
       }
     });
     for (const [id, c] of chars) {
@@ -592,14 +661,19 @@ export function reveal(state, meId, onDone) {
   if (meId !== undefined) myPlayerId = meId;
   let finished = false;
   const finish = () => { if (finished) return; finished = true; onDone && onDone(); };
-  try {
+  (async () => {
+   try {
     revealMode = true;
     resetGoals(); // 결과 다시 가리기(리플레이 대비)
-    // 길이에 맞춰 하강 속도 조정 (너무 오래 걸리지 않게, 약 8~14초)
     walkSpeed = SPEED; // 캐릭터 이동속도는 기존 그대로(고정). 서스펜스는 길이로 조절.
 
     const players = (state.players || []).filter((p) => p.lane != null);
     if (!players.length) { revealAllGoals(); endReveal(); finish(); return; }
+
+    // 모든 참가자(자동 채운 인원 포함)의 캐릭터가 준비될 때까지 기다린다.
+    // → 늦게 로딩된 캐릭터가 출발 못 하고 서 있던 문제 방지.
+    await Promise.all(players.map((p) => ensureChar(p, startPos(p.lane))));
+    if (!revealMode) { finish(); return; } // 대기 중 취소되면 중단
 
     const drum = banner('r3d-drum', '🪜 출발! 누가 어디로?');
     let remaining = players.length;
@@ -611,10 +685,10 @@ export function reveal(state, meId, onDone) {
       c.group.position.copy(wp[0]);
       c.path = wp; c.wpIdx = 1; c.walking = true; c.lockAnim = true;
       c.endLane = end; c.revealed = false;
-      c.nick.el.classList.remove('win');
+      setNick(c, p.name, p.id === myPlayerId ? 'me' : 'normal');
       c.onArrive = () => {
         goalPop(end);
-        c.nick.el.classList.add('win');
+        setNick(c, p.name, 'win');
         c.lockAnim = true;
         play(c, c.actions['emote-yes'] ? 'emote-yes' : 'jump', { once: true });
         if (navigator.vibrate) navigator.vibrate(30);
@@ -639,10 +713,11 @@ export function reveal(state, meId, onDone) {
       document.body.appendChild(flash); setTimeout(() => flash.remove(), 500);
       setTimeout(() => { endReveal(); finish(); }, 2600);
     }
-  } catch (e) {
+   } catch (e) {
     console.warn('[L3D] reveal 오류 → 종료', e);
     revealAllGoals(); endReveal(); finish();
-  }
+   }
+  })();
 }
 
 export const isReady = () => ready;
