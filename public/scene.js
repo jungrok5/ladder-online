@@ -276,8 +276,8 @@ function revealGoal(lane) {
 }
 
 function resetGoals() {
-  // 리플레이/재시작 대비: 결과를 다시 숨김
-  resultLabels.forEach((l) => { l.el.classList.add('clouded'); l.el.classList.remove('hit'); });
+  // 리플레이/재시작 대비: 강조(hit)만 초기화 (결과는 항상 보임)
+  resultLabels.forEach((l) => l.el.classList.remove('hit'));
   for (const c of chars.values()) c.revealed = false;
 }
 
@@ -334,10 +334,9 @@ function buildTrack(state) {
     tile.receiveShadow = true;
     trackGroup.add(tile);
 
-    // 결과 라벨: 연출/결과 화면에선 구름(clouded)으로 가려 숨기고 마지막 근처에서 드러냄.
-    // (로비에선 그냥 보여줌)
+    // 결과 라벨: 항상 처음부터 보임(도착 시 강조만).
     const txt = results[c] != null ? results[c] : '?';
-    const lab = makeLabel(started ? 'result clouded' : 'result', txt, 0.62);
+    const lab = makeLabel('result', txt, 0.62);
     lab.obj.position.set(xOf(c), 0.62, zEndG + 0.15);
     lab.laneIndex = c;
     trackGroup.add(lab.obj);
