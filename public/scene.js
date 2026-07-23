@@ -281,6 +281,7 @@ function loop() {
 
   for (const c of chars.values()) {
     if (c.mixer) c.mixer.update(dt);
+    if (c.marker) c.marker.position.y = c.markerBaseY + Math.sin(now * 0.004) * 0.09; // 위아래로 살짝
     if (c.walking) {
       advanceWalk(c, dt);
     } else if (!c.lockAnim) {
@@ -432,6 +433,57 @@ function setNick(c, text, kind) {
   nk.sprite.material.needsUpdate = true;
   nk.sprite.scale.set(NAME_H_WORLD * (W / H), NAME_H_WORLD, 1);
   nk.text = text; nk.kind = kind;
+}
+
+// ---- 내 캐릭터 머리 위 '나' 마커 (핀) — 시각적으로 눈에 띄게 ----
+function makeMeMarker() {
+  const dpr = 2, fs = 30, padX = 16, padY = 9, tail = 13;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const fontStr = `800 ${fs}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`;
+  ctx.font = fontStr;
+  const txt = '나';
+  const tw = Math.ceil(ctx.measureText(txt).width);
+  const W = tw + padX * 2, pillH = fs + padY * 2, H = pillH + tail;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.font = fontStr; ctx.textBaseline = 'middle';
+  const pink = 'rgba(255,108,147,0.98)';
+  // 아래를 가리키는 꼬리(삼각형)
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - 10, pillH - 4);
+  ctx.lineTo(W / 2 + 10, pillH - 4);
+  ctx.lineTo(W / 2, pillH + tail - 2);
+  ctx.closePath();
+  ctx.fillStyle = pink; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+  // 알약
+  roundRect(ctx, 2, 2, W - 4, pillH - 4, (pillH - 4) / 2);
+  ctx.fillStyle = pink; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillText(txt, padX, pillH / 2 + 1);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+  const sp = new THREE.Sprite(mat);
+  const hWorld = 0.5;
+  sp.scale.set(hWorld * (W / H), hWorld, 1);
+  sp.renderOrder = 11;
+  return sp;
+}
+function setMeMarker(c, on) {
+  if (on && !c.marker) {
+    const sp = makeMeMarker();
+    c.markerBaseY = TARGET_H + 0.98;
+    sp.position.set(0, c.markerBaseY, 0);
+    c.group.add(sp);
+    c.marker = sp;
+  } else if (!on && c.marker) {
+    c.group.remove(c.marker);
+    if (c.marker.material.map) c.marker.material.map.dispose();
+    c.marker.material.dispose();
+    c.marker = null;
+  }
 }
 
 // 도착 칸 결과를 강조(팝) — 마지막 근처/도착 시
@@ -614,6 +666,7 @@ export function sync(state, meId) {
       const homePos = (state.status === 'finished') ? endPos(p.lane, state) : startPos(p.lane);
       if (!c) { ensureChar(p, homePos); return; }
       const isMe = p.id === meId;
+      setMeMarker(c, isMe);
       if (revealMode || c.walking) { setNick(c, p.name, isMe ? 'me' : (c.nick.kind === 'win' ? 'win' : 'normal')); return; }
       c.target = homePos;
       c.lockAnim = false;
