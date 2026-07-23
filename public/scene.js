@@ -185,11 +185,12 @@ function loop() {
 
   const c0 = fpMode ? fpTarget() : null;
   if (c0) {
-    // 1인칭: 시선은 항상 목적지(+z) 방향으로 고정 — 캐릭터가 옆칸으로 꺾여도
-    // 카메라가 회전하지 않아 어지럽지 않다. 위치만 캐릭터를 부드럽게 따라간다.
+    // TPS(3인칭): 캐릭터 뒤·위에서 내려다보며 진행 방향(+z)을 향한다.
+    // 시선은 항상 +z 고정(회전 없음 → 안 어지러움), 위치만 캐릭터를 따라간다.
+    // 캐릭터가 시야를 가리지 않고 골(앞쪽)도 함께 보인다.
     const p = c0.group.position;
-    _eye.set(p.x, p.y + 1.55, p.z - 1.15);   // 캐릭터 뒤·위 (뒤 = -z)
-    _lk.set(p.x, p.y + 0.45, p.z + 5.0);       // 골(+z) 방향 고정
+    _eye.set(p.x, p.y + 2.7, p.z - 3.4);       // 더 뒤·더 위 (뒤 = -z)
+    _lk.set(p.x, p.y + 0.15, p.z + 4.5);        // 앞쪽 골(+z)을 살짝 내려다봄
     camera.position.lerp(_eye, Math.min(1, dt * 6));
     curLook.lerp(_lk, Math.min(1, dt * 6));
     camera.up.set(0, 1, 0);
@@ -335,9 +336,11 @@ function buildTrack(state) {
     trackGroup.add(tile);
 
     // 결과 라벨: 항상 처음부터 보임(도착 시 강조만).
+    // 칸이 많을 때 가로로 겹치지 않도록 3단 높이로 엇갈리게 배치.
     const txt = results[c] != null ? results[c] : '?';
-    const lab = makeLabel('result', txt, 0.62);
-    lab.obj.position.set(xOf(c), 0.62, zEndG + 0.15);
+    const yLab = 0.55 + (c % 3) * 0.6;
+    const lab = makeLabel('result', txt, yLab);
+    lab.obj.position.set(xOf(c), yLab, zEndG + 0.15);
     lab.laneIndex = c;
     trackGroup.add(lab.obj);
     resultLabels.push(lab);
