@@ -421,6 +421,15 @@ const server = http.createServer(async (req, res) => {
             room.players.push({ id: token(), name: uniqueRandomName(room), lane: i, bot: true });
           }
 
+          // ★ 공정성: 결과를 골 위치에 균등 셔플해 배치한다.
+          // 사다리는 출발 칸 근처로 쏠리는 성질(끈적임)이 있어서, 결과를 고정 배치하면
+          // 특정 출발 칸이 특정 결과에 편향된다. 결과를 무작위로 재배치하면 어떤 출발 칸이든
+          // 모든 결과를 정확히 균등한 확률로 받는다(수학적으로 보장, 인원 수와 무관).
+          for (let i = room.results.length - 1; i > 0; i--) {
+            const j = crypto.randomInt(i + 1);
+            [room.results[i], room.results[j]] = [room.results[j], room.results[i]];
+          }
+
           room.ladderSeed = pickLadderSeed(room.laneCount, room.ladderLength);
           room.ladder = buildLadderFromSeed(room.laneCount, room.ladderLength, room.ladderSeed);
           room.mapping = computeMapping(room.ladder, room.laneCount);

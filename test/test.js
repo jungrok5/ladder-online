@@ -193,6 +193,20 @@ async function integration() {
   assert.strictEqual(new Set(lanes).size, lanes.length, 'random: 칸 중복 없음');
   ok('random 모드: 시작 시 빈 칸 랜덤 배정(중복 없음)');
 
+  // 공정성: 시작 시 결과를 균등 셔플해 골에 배치 (출발 칸 편향 제거)
+  const IN = ['A','B','C','D','E','F'];
+  const orders = [];
+  for (let t = 0; t < 12; t++) {
+    const fr = await http(base, 'POST', '/api/rooms', { laneCount: 6, results: IN.slice() });
+    await http(base, 'POST', `/api/rooms/${fr.data.roomId}/join`, { lane: 0 });
+    const sr = await http(base, 'POST', `/api/rooms/${fr.data.roomId}/start`, { hostToken: fr.data.hostToken });
+    const got = sr.data.results;
+    assert.strictEqual([...got].sort().join(''), IN.join(''), '셔플 후에도 결과 집합은 동일(누락/중복 없음)');
+    orders.push(got.join(''));
+  }
+  assert.ok(orders.some((o) => o !== IN.join('')), '시작 시 결과 배치가 실제로 섞인다');
+  ok('공정성: 시작 시 결과 균등 셔플(집합 보존 + 실제 섞임)');
+
   // 이름 없이 참여 → 랜덤 닉네임 부여
   let anon = await http(base, 'POST', '/api/rooms', { laneCount: 4, results: ['a','b','c','d'] });
   let a1 = await http(base, 'POST', `/api/rooms/${anon.data.roomId}/join`, { lane: 0 });
